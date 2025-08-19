@@ -1,0 +1,23 @@
+services:
+    postgres:
+        image: postgres:15
+        environment:
+            POSTGRES_DB: finance_db
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: admin
+        ports:
+            - "5432:5432"
+        volumes: 
+            - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    make-data-service:
+        build: ./make-data-service
+        ports:
+            - "8002:8002"
+        environment:
+            ALPHA_API: 'Q2ROTZ7TNSLQEW6T'
+    auth:
+        build: ./auth-service
+        ports:
+            - "8001:8001"
+        environment:
+            JWT_Secret: 'test-auth-secret'
