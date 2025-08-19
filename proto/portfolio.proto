@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package portfolio;
+option go_package = "github.com/FUNfarik/finance_microservices/proto/portfolio";
+
+// Buy stock request
+message BuyStockRequest {
+  string token = 1;           // User authentication
+  string symbol = 2;          // Stock symbol (AAPL, GOOGL, etc.)
+  int32 shares = 3;           // Number of shares to buy
+}
+
+message BuyStockResponse {
+  bool success = 1;
+  string transaction_id = 2;   // Unique ID for this transaction
+  double total_cost = 3;       // Total amount spent
+  double remaining_cash = 4;   // User's cash after purchase
+  string error_message = 5;
+}
+
+// Sell stock request
+message SellStockRequest {
+  string token = 1;
+  string symbol = 2;
+  int32 shares = 3;
+}
+
+message SellStockResponse {
+  bool success = 1;
+  string transaction_id = 2;
+  double total_received = 3;   // Money received from sale
+  double remaining_cash = 4;
+  string error_message = 5;
+}
+
+// Get user's portfolio
+message GetPortfolioRequest {
+  string token = 1;
+}
+
+message Holding {
+  string symbol = 1;
+  string company_name = 2;
+  int32 shares = 3;
+  double avg_price = 4;        // Average price paid
+  double current_price = 5;    // Current market price
+  double total_value = 6;      // shares * current_price
+  double gain_loss = 7;        // Profit/loss on this holding
+}
+
+message GetPortfolioResponse {
+  repeated Holding holdings = 1;
+  double total_value = 2;      // Sum of all holdings
+  double cash_balance = 3;
+  double total_gain_loss = 4;  // Total profit/loss
+  bool success = 5;
+  string error_message = 6;
+}
+
+// Portfolio service definition
+service PortfolioService {
+  rpc BuyStock(BuyStockRequest) returns (BuyStockResponse);
+  rpc SellStock(SellStockRequest) returns (SellStockResponse);
+  rpc GetPortfolio(GetPortfolioRequest) returns (GetPortfolioResponse);
+}
