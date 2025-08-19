@@ -45,7 +45,7 @@ This is a modern reimplementation of the famous CS50 Finance project, built usin
 
 ### Prerequisites
 
-- **Docker** & **Docker Compose**
+- **Docker** & **Docker Compose** 
 - **Rust** 1.75+ (for development)
 - **Go** 1.21+ (for development)
 - **Alpha Vantage API key** (free)
@@ -274,8 +274,8 @@ POSTGRES_PORT=5432
 ### Getting API Keys
 
 1. **Alpha Vantage API:**
-    - Registration: https://www.alphavantage.co/support/#api-key
-    - Free tier: 5 requests per minute, 500 per day
+   - Registration: https://www.alphavantage.co/support/#api-key
+   - Free tier: 5 requests per minute, 500 per day
 
 ## 📚 Technology Stack
 
