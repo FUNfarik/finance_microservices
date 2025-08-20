@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package market;
-option go_package = "github.com/FUNfarik/finance_microservices/proto/market";
+option go_package = "github.com/FUNfarik/finance_microservices/proto/go/market";
 
 message GetStockPriceRequest {
   string symbol = 1;

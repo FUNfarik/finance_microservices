@@ -4,12 +4,12 @@
 .env.production
 *.env
 
-# Rust
+# rust
 target/
 Cargo.lock
 *.rs.bk
 
-# Go
+# go
 *.exe
 *.dll
 *.test

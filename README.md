@@ -27,7 +27,7 @@ This is a modern reimplementation of the famous CS50 Finance project, built usin
                                        │ └─────────────────┘ │
                                        │ ┌─────────────────┐ │
                                        │ │ Portfolio       │ │
-                                       │ │ (Go - Port 8003)│ │ 🛠️
+                                       │ │ (Go - Port 8003)│ │ ✅
                                        │ └─────────────────┘ │
                                        │ ┌─────────────────┐ │
                                        │ │ Analytics       │ │
@@ -222,11 +222,11 @@ go run main.go
 ### Testing
 
 ```bash
-# Rust tests
+# rust tests
 cd make-data-service
 cargo test
 
-# Go tests
+# go tests
 cd auth-service
 go test ./...
 
