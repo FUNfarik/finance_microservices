@@ -48,7 +48,7 @@ This is a modern reimplementation of the famous CS50 Finance project, built usin
 - **Docker** & **Docker Compose** 
 - **Rust** 1.75+ (for development)
 - **Go** 1.21+ (for development)
-- **Alpha Vantage API key** (free)
+- **Alpha Vantage API key** (free) " https://www.alphavantage.co/support/ "
 
 ### Installation and Setup
 
