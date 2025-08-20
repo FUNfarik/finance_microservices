@@ -88,7 +88,7 @@ func (db *DB) UpdateUserHoldings(userID int, symbol string, shares int, avgPrice
 
 func (db *DB) CreateTransaction(userID int, symbol string, shares int, price float64, transactionType string, totalAmount float64) error {
 	query := `
-       INSERT INTO transactions (user_id, symbol, shares, price, transaction_type, total_amount, timestamp)
+       INSERT INTO transactions (user_id, symbol, shares, price, transaction_type, total_amount, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
 	_, err := db.conn.Exec(query, userID, symbol, shares, price, transactionType, totalAmount, time.Now())
@@ -100,10 +100,10 @@ func (db *DB) CreateTransaction(userID int, symbol string, shares int, price flo
 
 func (db *DB) GetUserTransaction(userID int) ([]models.Transaction, error) {
 	query := `
-		SELECT id, user_id, symbol, shares, price, transaction_type, total_amount, timestamp
+		SELECT id, user_id, symbol, shares, price, transaction_type, total_amount, created_at
 		FROM transactions
 		WHERE user_id = $1
-		ORDER BY timestamp DESC
+		ORDER BY created_at DESC
 `
 
 	rows, err := db.conn.Query(query, userID)
@@ -127,4 +127,46 @@ func (db *DB) GetUserTransaction(userID int) ([]models.Transaction, error) {
 
 func (db *DB) BeginTx(ctx context.Context) (*sql.Tx, error) {
 	return db.conn.BeginTx(ctx, nil)
+}
+
+// GetAllUserHoldings retrieves all stock holdings for a user
+func (db *DB) GetAllUserHoldings(userID int) ([]models.Holding, error) {
+	query := `
+		SELECT symbol, shares, avg_price 
+		FROM holdings 
+		WHERE user_id = $1 AND shares > 0
+	`
+
+	rows, err := db.conn.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query holdings: %w", err)
+	}
+	defer rows.Close()
+
+	var holdings []models.Holding
+	for rows.Next() {
+		var holding models.Holding
+		err := rows.Scan(&holding.Symbol, &holding.Shares, &holding.AvgPrice)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan holding: %w", err)
+		}
+		holdings = append(holdings, holding)
+	}
+
+	return holdings, nil
+}
+
+// GetUserHolding gets specific stock holding for user (rename your existing function)
+func (db *DB) GetUserHolding(userID int, symbol string) (*models.Holding, error) {
+	return db.GetUserHoldings(userID, symbol)
+}
+
+// UpsertHolding - rename your existing UpdateUserHoldings
+func (db *DB) UpsertHolding(userID int, symbol string, shares int, avgPrice float64) error {
+	return db.UpdateUserHoldings(userID, symbol, shares, avgPrice)
+}
+
+// GetUserTransactions - rename your existing function
+func (db *DB) GetUserTransactions(userID int) ([]models.Transaction, error) {
+	return db.GetUserTransaction(userID)
 }
