@@ -25,7 +25,7 @@ func Connect() (*MarketClient, error) {
 
 	client := pb.NewMarketDataServiceClient(conn)
 
-	fmt.Println("✅ Connected to Market Data Service via gRPC on port 8005")
+	fmt.Println("Connected to Market Data Service via gRPC on port 8005")
 	return &MarketClient{
 		conn:   conn,
 		client: client,
@@ -52,7 +52,7 @@ func (c *MarketClient) GetStockPrice(ctx context.Context, symbol string) (float6
 		return 0, "", fmt.Errorf("service error: %s", response.ErrorMessage)
 	}
 
-	fmt.Printf("📈 Retrieved price for %s (%s): $%.2f\n", symbol, response.Name, response.CurrentPrice)
+	fmt.Printf("Retrieved price for %s (%s): $%.2f\n", symbol, response.Name, response.CurrentPrice)
 	return response.CurrentPrice, response.Name, nil
 }
 
@@ -78,7 +78,7 @@ func (c *MarketClient) GetMultipleStockPrices(ctx context.Context, symbols []str
 		}
 	}
 
-	fmt.Printf("📊 Retrieved prices for %d symbols\n", len(prices))
+	fmt.Printf("Retrieved prices for %d symbols\n", len(prices))
 	return prices, nil
 }
 
