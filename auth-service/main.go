@@ -94,7 +94,7 @@ func main() {
 
 	db, err := connectDB()
 	if err != nil {
-		fmt.Printf("❌ Couldn't connect to PostgreSQL: %v\n", err)
+		fmt.Printf("Couldn't connect to PostgreSQL: %v\n", err)
 		return
 	}
 	defer db.Close()

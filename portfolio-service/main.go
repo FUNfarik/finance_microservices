@@ -20,14 +20,14 @@ func main() {
 	// Connect to database
 	db, err := database.Connect()
 	if err != nil {
-		log.Fatalf("❌ Failed to connect to database: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
 	// Connect to Market Data Service via gRPC
 	marketClient, err := grpcclient.Connect()
 	if err != nil {
-		log.Fatalf("❌ Failed to connect to Market Data Service: %v", err)
+		log.Fatalf("Failed to connect to Market Data Service: %v", err)
 	}
 	defer marketClient.Close()
 
@@ -52,7 +52,7 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		fmt.Println("🚀 Portfolio Service starting...")
+		fmt.Println("Portfolio Service starting...")
 		fmt.Println("Server running on http://localhost:8003")
 		fmt.Println("Available endpoints:")
 		fmt.Println("- GET  /health")
@@ -62,7 +62,7 @@ func main() {
 		fmt.Println("- GET  /transactions/{user_id}")
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("❌ Server failed to start: %v", err)
+			log.Fatalf("Server failed to start: %v", err)
 		}
 	}()
 
@@ -71,15 +71,15 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	fmt.Println("\n🛑 Shutting down Portfolio Service...")
+	fmt.Println("\nShutting down Portfolio Service...")
 
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("❌ Server forced to shutdown: %v", err)
+		log.Printf("Server forced to shutdown: %v", err)
 	}
 
-	fmt.Println("✅ Portfolio Service stopped")
+	fmt.Println("Portfolio Service stopped")
 }

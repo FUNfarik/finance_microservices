@@ -165,7 +165,7 @@ func (s *PortfolioService) BuyStock(ctx context.Context, userID int, symbol stri
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	fmt.Printf("✅ Successfully bought %d shares of %s for $%.2f\n", shares, symbol, totalCost)
+	fmt.Printf("Successfully bought %d shares of %s for $%.2f\n", shares, symbol, totalCost)
 	return nil
 }
 
@@ -239,7 +239,7 @@ func (s *PortfolioService) SellStock(ctx context.Context, userID int, symbol str
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	fmt.Printf("✅ Successfully sold %d shares of %s for $%.2f\n", shares, symbol, totalReceived)
+	fmt.Printf("Successfully sold %d shares of %s for $%.2f\n", shares, symbol, totalReceived)
 	return nil
 }
 

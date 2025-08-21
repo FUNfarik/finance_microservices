@@ -118,7 +118,7 @@ func (h *Handlers) BuyStockHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	json.NewEncoder(w).Encode(response)
-	fmt.Printf("💰 Buy order: User %d bought %d shares of %s\n", buyReq.UserID, buyReq.Shares, buyReq.Symbol)
+	fmt.Printf("Buy order: User %d bought %d shares of %s\n", buyReq.UserID, buyReq.Shares, buyReq.Symbol)
 }
 
 // SellStockHandler processes stock sales
@@ -202,5 +202,5 @@ func (h *Handlers) GetTransactionsHandler(w http.ResponseWriter, r *http.Request
 		Data:    transactions,
 	}
 	json.NewEncoder(w).Encode(response)
-	fmt.Printf("📝 Transaction history requested for user %d\n", userID)
+	fmt.Printf("Transaction history requested for user %d\n", userID)
 }
