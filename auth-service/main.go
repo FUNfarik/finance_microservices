@@ -13,6 +13,47 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// enable CORS for browser to pass the policy
+func enableCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get allowed origins from environment variable
+		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+		if allowedOrigins == "" {
+			// Default for development
+			allowedOrigins = "http://localhost:3000"
+		}
+
+		// You can support multiple origins separated by commas
+		origins := strings.Split(allowedOrigins, ",")
+		origin := r.Header.Get("Origin")
+
+		// Check if the request origin is allowed
+		allowOrigin := ""
+		for _, allowedOrigin := range origins {
+			if strings.TrimSpace(allowedOrigin) == origin {
+				allowOrigin = origin
+				break
+			}
+		}
+
+		if allowOrigin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+		}
+
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next(w, r)
+	}
+}
+
 func jwtMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -117,9 +158,9 @@ func main() {
 	}
 	defer db.Close()
 
-	fmt.Println("🚀 Auth Service is running...")
+	fmt.Println("Auth Service is running...")
 	//  Implement login
-	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/login", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"message": "Login page", "action": "login"}`))
 		if r.Method == "POST" {
@@ -146,9 +187,9 @@ func main() {
 			}
 			w.Write([]byte(fmt.Sprintf(`{"message": "Successfully logged in", "token": "%s", "status": "success"}`, token)))
 		}
-	})
+	}))
 
-	http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/register", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"message": "Register page", "action": "register"}`))
 		if r.Method == "POST" {
@@ -177,12 +218,12 @@ func main() {
 			}
 			w.Write([]byte(`{"message": "Successfully registered", "action": "login"}`))
 		}
-	})
+	}))
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/health", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status": "OK", "service": "auth-service", "port": 8001, "database": "connected"}`))
-	})
+	}))
 
 	fmt.Println("Server is running on http://localhost:8001")
 	fmt.Println("Available endpoints:")
