@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/golang-jwt/jwt/v5/request"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
@@ -55,7 +54,26 @@ func getJWTSecret() string {
 }
 
 func connectDB() (*sql.DB, error) {
-	connStr := "postgres://admin:admin@127.0.0.1:5432/finance_db?sslmode=disable"
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "admin"
+	}
+
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = "admin"
+	}
+
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "finance_db"
+	}
+
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbName)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -67,7 +85,7 @@ func connectDB() (*sql.DB, error) {
 		return nil, err
 	}
 
-	fmt.Println("✅ Connected to PostgreSQL")
+	fmt.Println("Connected to PostgreSQL")
 	return db, nil
 }
 
@@ -152,7 +170,7 @@ func main() {
 				return
 			}
 
-			_, err := db.Exec("INSERT INTO users (username, password_hash, email) VALUES ($1, $2, $3)", login, hashedPassword, email)
+			_, err = db.Exec("INSERT INTO users (username, password_hash, email) VALUES ($1, $2, $3)", login, hashedPassword, email)
 			if err != nil {
 				fmt.Println("Failed to create user")
 				return
