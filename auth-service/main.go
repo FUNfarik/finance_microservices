@@ -46,7 +46,7 @@ func jwtMiddleware(next http.HandlerFunc) http.HandlerFunc {
 var jwtSecret = []byte(getJWTSecret())
 
 func getJWTSecret() string {
-	secret := os.Getenv("JWT_Secret")
+	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return "default-secret-key"
 	}
