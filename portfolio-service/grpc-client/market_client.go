@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	// Use the correct import path from your main proto
 	pb "github.com/FUNfarik/finance_microservices/proto/go/market"
 )
 
@@ -18,7 +17,7 @@ type MarketClient struct {
 
 // Connect establishes gRPC connection to Market Data Service
 func Connect() (*MarketClient, error) {
-	conn, err := grpc.Dial("localhost:8005", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("localhost:8005", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to market data service: %w", err)
 	}
