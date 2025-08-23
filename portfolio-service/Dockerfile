@@ -1,19 +1,22 @@
 FROM golang:1.24-alpine AS builder
+
 WORKDIR /app
 
-# Copy proto files first (now accessible from root context)
-COPY proto/ ./proto/
 
-# Copy portfolio service files
-COPY portfolio-service/go.mod portfolio-service/go.sum ./
+COPY proto/ ./proto/
+COPY portfolio-service/ ./portfolio-service/
+
+WORKDIR /app/portfolio-service
+
 RUN go mod download
 
-COPY portfolio-service/ .
+RUN go get github.com/FUNfarik/finance_microservices/proto/go
+RUN go mod download
+
 RUN go build -o main .
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
-COPY --from=builder /app/main .
-EXPOSE 8003
+COPY --from=builder /app/portfolio-service/main .
 CMD ["./main"]
