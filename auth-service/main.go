@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -12,6 +14,18 @@ import (
 
 	_ "github.com/lib/pq"
 )
+
+// JSON request structures
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type RegisterRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
 
 // enable CORS for browser to pass the policy
 func enableCORS(next http.HandlerFunc) http.HandlerFunc {
@@ -41,8 +55,9 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "3600")
 
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
@@ -78,7 +93,6 @@ func jwtMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		userID := int(claims["user_id"].(float64))
 		username := claims["username"].(string)
 
-		// После успешной проверки токена:
 		fmt.Printf("User %s (ID: %d) authenticated\n", username, userID)
 		next(w, r)
 	}
@@ -146,11 +160,6 @@ func generateJWT(userID int, username string) (string, error) {
 }
 
 func main() {
-	http.HandleFunc("/profile", jwtMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"message": "Protected endpoint", "status": "success", "note": "You are authenticated!"}`))
-	}))
-
 	db, err := connectDB()
 	if err != nil {
 		fmt.Printf("Couldn't connect to PostgreSQL: %v\n", err)
@@ -159,67 +168,173 @@ func main() {
 	defer db.Close()
 
 	fmt.Println("Auth Service is running...")
-	//  Implement login
+
+	// Protected profile endpoint
+	http.HandleFunc("/profile", jwtMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message": "Protected endpoint", "status": "success", "note": "You are authenticated!"}`))
+	}))
+
+	// Login endpoint - Updated to handle JSON
 	http.HandleFunc("/login", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"message": "Login page", "action": "login"}`))
-		if r.Method == "POST" {
-			login := r.FormValue("login")
-			password := r.FormValue("password")
-			// bcrypt.GenerateFromPassword
-			var username, passwordHash string
-			var userID int
-			err := db.QueryRow("SELECT username, password_hash, id FROM users WHERE username = $1", login).Scan(&username, &passwordHash, &userID)
-			if err != nil {
-				fmt.Println("Username and Password are invalid")
-				return
-			}
-			err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
-			if err != nil {
-				fmt.Printf("Couldn't login: %v\n", err)
-				return
-			}
-			fmt.Printf("%s: Successfully logged in", username)
-			token, err := generateJWT(userID, username)
-			if err != nil {
-				fmt.Printf("Couldn't generate JWT for %s : %v\n", username, err)
-				return
-			}
-			w.Write([]byte(fmt.Sprintf(`{"message": "Successfully logged in", "token": "%s", "status": "success"}`, token)))
+
+		if r.Method == "GET" {
+			w.Write([]byte(`{"message": "Login endpoint", "method": "POST"}`))
+			return
 		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.Write([]byte(`{"error": "Method not allowed", "status": "error"}`))
+			return
+		}
+
+		// Read and parse JSON request body
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Could not read request body", "status": "error"}`))
+			return
+		}
+
+		var loginReq LoginRequest
+		err = json.Unmarshal(body, &loginReq)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Invalid JSON format", "status": "error"}`))
+			return
+		}
+
+		// Validate input
+		if loginReq.Email == "" || loginReq.Password == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Email and password are required", "status": "error"}`))
+			return
+		}
+
+		// Query user by email
+		var username, passwordHash string
+		var userID int
+		var cash float64
+
+		err = db.QueryRow("SELECT id, username, password_hash, cash FROM users WHERE email = $1", loginReq.Email).Scan(&userID, &username, &passwordHash, &cash)
+		if err != nil {
+			fmt.Printf("Login attempt failed for email: %s - %v\n", loginReq.Email, err)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error": "Invalid email or password", "status": "error"}`))
+			return
+		}
+
+		// Check password
+		err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(loginReq.Password))
+		if err != nil {
+			fmt.Printf("Password verification failed for user: %s\n", username)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error": "Invalid email or password", "status": "error"}`))
+			return
+		}
+
+		// Generate JWT token
+		token, err := generateJWT(userID, username)
+		if err != nil {
+			fmt.Printf("JWT generation failed for user %s: %v\n", username, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "Could not generate token", "status": "error"}`))
+			return
+		}
+
+		// Success response
+		fmt.Printf("User %s (ID: %d) logged in successfully\n", username, userID)
+
+		response := fmt.Sprintf(`{
+			"message": "Login successful", 
+			"status": "success",
+			"token": "%s",
+			"user": {
+				"id": %d,
+				"username": "%s",
+				"email": "%s",
+				"cash": %.2f
+			}
+		}`, token, userID, username, loginReq.Email, cash)
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(response))
 	}))
 
+	// Register endpoint - Updated to handle JSON
 	http.HandleFunc("/register", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"message": "Register page", "action": "register"}`))
-		if r.Method == "POST" {
-			// Getting the users registration JSON
-			email := r.FormValue("email")
-			login := r.FormValue("login")
-			password := r.FormValue("password")
 
-			// Checking that user can be created
-			var username string
-			err := db.QueryRow("SELECT username FROM users WHERE username = $1", login).Scan(&username)
-			if err == nil {
-				fmt.Println("This login is already taken")
-				return
-			}
-			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-			if err != nil {
-				fmt.Println("Password hashing failed")
-				return
-			}
-
-			_, err = db.Exec("INSERT INTO users (username, password_hash, email) VALUES ($1, $2, $3)", login, hashedPassword, email)
-			if err != nil {
-				fmt.Println("Failed to create user")
-				return
-			}
-			w.Write([]byte(`{"message": "Successfully registered", "action": "login"}`))
+		if r.Method == "GET" {
+			w.Write([]byte(`{"message": "Register endpoint", "method": "POST"}`))
+			return
 		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.Write([]byte(`{"error": "Method not allowed", "status": "error"}`))
+			return
+		}
+
+		// Read and parse JSON request body
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Could not read request body", "status": "error"}`))
+			return
+		}
+
+		var registerReq RegisterRequest
+		err = json.Unmarshal(body, &registerReq)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Invalid JSON format", "status": "error"}`))
+			return
+		}
+
+		// Validate input
+		if registerReq.Username == "" || registerReq.Email == "" || registerReq.Password == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Username, email and password are required", "status": "error"}`))
+			return
+		}
+
+		// Check if user already exists
+		var existingUsername string
+		err = db.QueryRow("SELECT username FROM users WHERE username = $1 OR email = $2", registerReq.Username, registerReq.Email).Scan(&existingUsername)
+		if err == nil {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(`{"error": "Username or email already exists", "status": "error"}`))
+			return
+		}
+
+		// Hash password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(registerReq.Password), bcrypt.DefaultCost)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "Password hashing failed", "status": "error"}`))
+			return
+		}
+
+		// Insert new user with default cash amount
+		var newUserID int
+		err = db.QueryRow("INSERT INTO users (username, password_hash, email, cash, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id",
+			registerReq.Username, hashedPassword, registerReq.Email, 10000.00).Scan(&newUserID)
+		if err != nil {
+			fmt.Printf("Failed to create user: %v\n", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "Failed to create user", "status": "error"}`))
+			return
+		}
+
+		fmt.Printf("✅ New user registered: %s (ID: %d)\n", registerReq.Username, newUserID)
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`{"message": "Successfully registered", "status": "success"}`))
 	}))
 
+	// Health check endpoint
 	http.HandleFunc("/health", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status": "OK", "service": "auth-service", "port": 8001, "database": "connected"}`))
@@ -230,6 +345,7 @@ func main() {
 	fmt.Println("- http://localhost:8001/login")
 	fmt.Println("- http://localhost:8001/register")
 	fmt.Println("- http://localhost:8001/health")
+	fmt.Println("- http://localhost:8001/profile")
 
 	http.ListenAndServe(":8001", nil)
 }

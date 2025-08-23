@@ -174,7 +174,7 @@ async fn get_stock_data(symbol: String) -> Result<impl warp::Reply, warp::Reject
 async fn main() {
     dotenv::dotenv().ok();
     
-    println!("🚀Starting Market Data Service...🚀");
+    println!("Starting Market Data Service...");
 
     let stock_route = warp::path!("stock" / String)
         .and_then(get_stock_data);
@@ -184,14 +184,14 @@ async fn main() {
     
     
     let http_handle = tokio::spawn(async move {
-        println!("📡 HTTP server running on port 8002");
+        println!("HTTP server running on port 8002");
         warp::serve(stock_route)
             .run(([0, 0, 0, 0], 8002))
             .await;
     });
     
     let grpc_handle = tokio::spawn(async move {
-        println!("⚡ gRPC server running on port 8005");
+        println!("gRPC server running on port 8005");
         Server::builder()
         .add_service(grpc_server)
         .serve(([0, 0, 0, 0], 8005).into())

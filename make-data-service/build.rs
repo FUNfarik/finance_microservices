@@ -4,8 +4,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_client(false)
         .file_descriptor_set_path("src/market_descriptor.bin")  // Add this
         .compile_protos(
-            &["../proto/market.proto"],
-            &["../proto/"],
+            &["../proto/rust/market.proto"],
+            &["../proto/rust"],
         )?;
 
     println!("cargo:rerun-if-changed=../proto/market.proto");
