@@ -214,7 +214,6 @@ export default {
           symbol: data.symbol,
           name: data.name || data.company_name || 'Unknown Company',
           price: data.price || data.current_price,
-          change: data.change || data.price_change || 0,
           changePercent: data.change_percent || data.percentage_change || 0
         }
 

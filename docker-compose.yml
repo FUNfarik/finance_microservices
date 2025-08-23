@@ -25,6 +25,7 @@ services:
             - "8002:8002"
         environment:
             ALPHA_API: ${ALPHA_API}
+            ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
 
     auth:
         build: ./auth-service
@@ -55,6 +56,7 @@ services:
             DB_NAME: ${POSTGRES_DB}
             AUTH_SERVICE_URL: http://auth:8001
             MARKET_SERVICE_URL: http://make-data-service:8002
+            ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
         depends_on:
             postgres:
                 condition: service_healthy

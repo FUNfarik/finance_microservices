@@ -4,9 +4,39 @@ use std::env;
 use serde_json;
 use tonic::{transport::Server, Request, Response, Status};
 use futures::future::join_all;
+use std::convert::Infallible;
 
 pub mod market_proto {
     tonic::include_proto!("market");
+}
+
+// Create CORS filter for Warp
+fn cors_filter() -> warp::filters::cors::Cors {
+    let allowed_origins = env::var("ALLOWED_ORIGINS")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+    if allowed_origins == "*" {
+        // For development - allow all origins
+        warp::cors()
+            .allow_any_origin()
+            .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allow_headers(vec!["content-type", "authorization", "accept", "origin"])
+            .build()
+    } else {
+        // For production - only allowed origins
+        let origins: Vec<&str> = allowed_origins
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        warp::cors()
+            .allow_origins(origins)
+            .allow_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allow_headers(vec!["content-type", "authorization", "accept", "origin"])
+            .allow_credentials(true)
+            .build()
+    }
 }
 
 // Import the server components and message types from the module
@@ -29,6 +59,7 @@ struct AlphaVantageResponse {
     #[serde(rename = "Global Quote")]
     global_quote: GlobalQuote,
 }
+
 #[derive(Deserialize, Debug)]
 struct GlobalQuote {
     #[serde(rename = "01. symbol")]
@@ -38,9 +69,10 @@ struct GlobalQuote {
     #[serde(rename = "10. change percent")]
     change_percent: String,
 }
+
 #[derive(Default)]
 pub struct MyMarketDataService;
-// Include the generated protobuf code
+
 #[tonic::async_trait]
 impl MarketDataService for MyMarketDataService {
     async fn get_stock_price(
@@ -63,8 +95,7 @@ impl MarketDataService for MyMarketDataService {
                 Ok(Response::new(response))
             }
             Err(e) => {
-                let response = GetStockPriceResponse
-                {
+                let response = GetStockPriceResponse {
                     symbol,
                     name: String::new(),
                     current_price: 0.0,
@@ -83,7 +114,7 @@ impl MarketDataService for MyMarketDataService {
     ) -> Result<Response<GetMultipleStocksResponse>, Status> {
         let symbols = request.into_inner().symbols;
         println!("gRPC request for symbols {:?}", symbols);
-        
+
         let futures: Vec<_> = symbols.into_iter()
             .map(|symbol| {
                 let symbol_clone = symbol.clone();
@@ -110,9 +141,9 @@ impl MarketDataService for MyMarketDataService {
                 }
             })
             .collect();
-        
+
         let stocks = join_all(futures).await;
-        
+
         let response = GetMultipleStocksResponse {
             stocks,
             success: true,
@@ -122,10 +153,11 @@ impl MarketDataService for MyMarketDataService {
         Ok(Response::new(response))
     }
 }
+
 async fn fetch_stock_data_internal(symbol: String) -> Result<Stock, String> {
     let api_key = env::var("ALPHA_API").unwrap_or_else(|_| "demo".to_string());
     let url = format!("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={}&apikey={}",
-        symbol, api_key
+                      symbol, api_key
     );
 
     println!("Fetching data from {}", url);
@@ -156,11 +188,12 @@ async fn fetch_stock_data_internal(symbol: String) -> Result<Stock, String> {
 
     Ok(stock)
 }
-async fn get_stock_data(symbol: String) -> Result<impl warp::Reply, warp::Rejection> {
+
+async fn get_stock_data(symbol: String) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
     match fetch_stock_data_internal(symbol).await {
         Ok(stock) => {
             println!("Sending response: {:?}", stock);
-            Ok(warp::reply::json(&stock))
+            Ok(Box::new(warp::reply::json(&stock)))
         }
         Err(e) => {
             println!("Error: {}", e);
@@ -169,38 +202,87 @@ async fn get_stock_data(symbol: String) -> Result<impl warp::Reply, warp::Reject
     }
 }
 
+// Add another endpoint for multiple stock requests via HTTP
+async fn get_multiple_stocks_http(symbols: String) -> Result<Box<dyn warp::Reply>, warp::Rejection> {
+    let symbol_list: Vec<String> = symbols
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if symbol_list.is_empty() {
+        return Err(warp::reject::not_found());
+    }
+
+    let futures: Vec<_> = symbol_list.into_iter()
+        .map(|symbol| async move {
+            fetch_stock_data_internal(symbol).await
+        })
+        .collect();
+
+    let results = join_all(futures).await;
+    let stocks: Vec<Stock> = results.into_iter()
+        .filter_map(|result| result.ok())
+        .collect();
+
+    Ok(Box::new(warp::reply::json(&stocks)))
+}
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    
+
     println!("Starting Market Data Service...");
+
+    // Create CORS filter
+    let cors = cors_filter();
 
     let stock_route = warp::path!("stock" / String)
         .and_then(get_stock_data);
 
+    // New route for multiple requests
+    let multiple_stocks_route = warp::path!("stocks" / String)
+        .and_then(get_multiple_stocks_http);
+
+    // Add OPTIONS handler for preflight requests
+    let cors_preflight = warp::options()
+        .map(|| -> Result<Box<dyn warp::Reply>, Infallible> {
+            Ok(Box::new(warp::reply::with_status("", warp::http::StatusCode::OK)))
+        })
+        .and_then(|result| async { result });
+
+    // Combine all routes
+    let routes = stock_route
+        .or(multiple_stocks_route)
+        .or(cors_preflight)
+        .with(cors);
+
     let grpc_service = MyMarketDataService::default();
     let grpc_server = MarketDataServiceServer::new(grpc_service);
-    
-    
-    let http_handle = tokio::spawn(async move {
-        println!("HTTP server running on port 8002");
-        warp::serve(stock_route)
-            .run(([0, 0, 0, 0], 8002))
-            .await;
-    });
-    
-    let grpc_handle = tokio::spawn(async move {
-        println!("gRPC server running on port 8005");
-        Server::builder()
+
+    // Start both servers concurrently without tokio::spawn
+    println!("HTTP server running on port 8002");
+    println!("Available endpoints:");
+    println!("  GET /stock/AAPL - Get single stock data");
+    println!("  GET /stocks/AAPL,GOOGL,MSFT - Get multiple stocks data");
+    println!("gRPC server running on port 8005");
+
+    let http_server = warp::serve(routes)
+        .run(([0, 0, 0, 0], 8002));
+
+    let grpc_server_future = Server::builder()
         .add_service(grpc_server)
-        .serve(([0, 0, 0, 0], 8005).into())
-        .await
-        .expect("gRPC server failed");
-    });
-    
+        .serve(([0, 0, 0, 0], 8005).into());
+
+    // Run both servers concurrently
     tokio::select! {
-    _ = http_handle => println!("HTTP Server shutdown"),
-    _ = grpc_handle => println!("GRPC Server shutdown"),
+        _ = http_server => println!("HTTP Server shutdown"),
+        result = grpc_server_future => {
+            if let Err(e) = result {
+                eprintln!("gRPC server failed: {}", e);
+            } else {
+                println!("gRPC Server shutdown");
+            }
+        }
     }
 }
