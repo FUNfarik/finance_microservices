@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,6 +16,45 @@ import (
 	"portfolio-service/handlers"
 	"portfolio-service/services"
 )
+
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+		if allowedOrigins == "" {
+			allowedOrigins = "http://localhost:3000"
+		}
+
+		origins := strings.Split(allowedOrigins, ",")
+		origin := r.Header.Get("Origin")
+
+		allowedOrigin := ""
+		for _, o := range origins {
+			// Fixed: use 'o' instead of 'allowedOrigin'
+			if strings.TrimSpace(o) == origin {
+				allowedOrigin = origin
+				break
+			}
+		}
+
+		// Fixed: set header when allowedOrigin is NOT empty
+		if allowedOrigin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		}
+
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "3600")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	// Connect to database
@@ -37,17 +77,24 @@ func main() {
 	// Create handlers
 	h := handlers.NewHandlers(portfolioService)
 
-	// Setup HTTP routes
-	http.HandleFunc("/health", h.HealthHandler)
-	http.HandleFunc("/portfolio/", h.GetPortfolioHandler)
-	http.HandleFunc("/buy", h.BuyStockHandler)
-	http.HandleFunc("/sell", h.SellStockHandler)
-	http.HandleFunc("/transactions/", h.GetTransactionsHandler)
+	// Setup HTTP routes with CORS enabled for all endpoints
+	mux := http.NewServeMux()
 
-	// Create HTTP server
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "healthy"}`))
+	})
+
+	mux.HandleFunc("/portfolio/", h.GetPortfolioHandler)
+	mux.HandleFunc("/buy", h.BuyStockHandler)
+	mux.HandleFunc("/sell", h.SellStockHandler)
+	mux.HandleFunc("/transactions/", h.GetTransactionsHandler)
+
+	// Create HTTP server with CORS middleware applied to all routes
 	server := &http.Server{
 		Addr:    ":8003",
-		Handler: nil, // Use default ServeMux
+		Handler: enableCORS(mux), // Apply CORS to all routes
 	}
 
 	// Start server in a goroutine
