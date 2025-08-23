@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.9'
 
 services:
     postgres:
@@ -18,7 +18,9 @@ services:
             retries: 10
 
     make-data-service:
-        build: ./make-data-service
+        build:
+            context: .
+            dockerfile: make-data-service/Dockerfile
         ports:
             - "8002:8002"
         environment:
@@ -39,3 +41,22 @@ services:
             postgres:
                 condition: service_healthy
         restart: unless-stopped
+
+    portfolio:
+        build:
+            context: .
+            dockerfile: portfolio-service/Dockerfile
+        ports:
+            - "8003:8003"
+        environment:
+            DB_HOST: postgres
+            DB_USER: ${POSTGRES_USER}
+            DB_PASSWORD: ${POSTGRES_PASSWORD}
+            DB_NAME: ${POSTGRES_DB}
+            AUTH_SERVICE_URL: http://auth:8001
+            MARKET_SERVICE_URL: http://make-data-service:8002
+        depends_on:
+            postgres:
+                condition: service_healthy
+            auth:
+                condition: service_started

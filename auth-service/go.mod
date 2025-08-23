@@ -3,7 +3,7 @@ module auth-service
 go 1.24.5
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.2.3
-	github.com/lib/pq v1.10.9
-	golang.org/x/crypto v0.40.0
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
+	github.com/lib/pq v1.10.9 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
 )

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"portfolio-service/models"
 	"time"
 
@@ -15,19 +16,38 @@ type DB struct {
 }
 
 func Connect() (*DB, error) {
-	connStr := "postgres://admin:admin@localhost:5432/finance_db?sslmode=disable"
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "admin"
+	}
+
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = "admin"
+	}
+
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "finance_db"
+	}
+
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbName)
 
 	conn, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to database: %v", err)
+		return nil, err
 	}
 
 	err = conn.Ping()
 	if err != nil {
-		return nil, fmt.Errorf("error pinging database: %v", err)
+		return nil, err
 	}
 
-	fmt.Println("✅ Portfolio Service connected to database")
+	fmt.Println("Connected to PostgreSQL")
 	return &DB{conn: conn}, nil
 }
 
