@@ -1,0 +1,519 @@
+/* Trade Page Styles */
+.trade-page {
+    max-width: var(--breakpoint-xxl);
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+.trade-page h1 {
+    text-align: center;
+    margin-bottom: var(--spacing-xxl);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.trade-page h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    color: var(--text-primary);
+}
+
+/* Section Containers */
+.search-section,
+.popular-section,
+.portfolio-summary,
+.holdings-section {
+    background: var(--bg-primary);
+    padding: var(--spacing-xxl);
+    border-radius: var(--border-radius-xl);
+    box-shadow: var(--shadow-lg);
+    margin-bottom: var(--spacing-xl);
+    border: 1px solid var(--gray-200);
+}
+
+/* Search Box */
+.search-box {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.search-input {
+    flex: 1;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: 2px solid var(--gray-300);
+    border-radius: var(--border-radius-lg);
+    font-size: var(--font-size-base);
+    transition: all var(--transition-normal);
+    background: var(--bg-primary);
+}
+
+.search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-btn {
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: var(--text-light);
+    border-radius: var(--border-radius-lg);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-normal);
+    white-space: nowrap;
+}
+
+.search-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+}
+
+.search-btn:disabled {
+    background: var(--gray-500);
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Stock Cards Grid */
+.stock-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-lg);
+}
+
+/* Stock Card */
+.stock-card {
+    background: linear-gradient(135deg, var(--gray-100), #ffffff);
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius-xl);
+    padding: var(--spacing-lg);
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+.stock-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+    transform: scaleX(0);
+    transition: transform var(--transition-normal);
+}
+
+.stock-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--primary-color);
+}
+
+.stock-card:hover::before {
+    transform: scaleX(1);
+}
+
+/* Stock Card Header */
+.stock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.stock-symbol {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xl);
+    color: var(--primary-color);
+}
+
+.stock-name {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-md);
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.stock-price {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-2xl);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.stock-change {
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+}
+
+.stock-change.positive {
+    color: var(--success-color);
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.stock-change.negative {
+    color: var(--danger-color);
+    background: rgba(220, 53, 69, 0.1);
+}
+
+/* Trading Controls */
+.trade-controls {
+    margin-top: var(--spacing-lg);
+}
+
+.quantity-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.qty-btn {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--primary-color);
+    background: var(--bg-primary);
+    color: var(--primary-color);
+    border-radius: var(--border-radius-md);
+    font-weight: var(--font-weight-bold);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qty-btn:hover {
+    background: var(--primary-color);
+    color: var(--text-light);
+    transform: scale(1.05);
+}
+
+.qty-input {
+    width: 80px;
+    padding: var(--spacing-sm);
+    text-align: center;
+    border: 2px solid var(--gray-300);
+    border-radius: var(--border-radius-md);
+    font-weight: var(--font-weight-semibold);
+    background: var(--bg-primary);
+}
+
+.qty-input:focus {
+    border-color: var(--primary-color);
+}
+
+/* Trade Buttons */
+.trade-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.buy-btn,
+.sell-btn {
+    flex: 1;
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-normal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.buy-btn {
+    background: linear-gradient(135deg, var(--success-color), var(--success-dark));
+    color: var(--text-light);
+}
+
+.buy-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.sell-btn {
+    background: linear-gradient(135deg, var(--danger-color), var(--danger-dark));
+    color: var(--text-light);
+}
+
+.sell-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+}
+
+.buy-btn:disabled,
+.sell-btn:disabled {
+    background: var(--gray-500);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Current Holdings Display */
+.current-holding {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 123, 255, 0.1);
+    border-radius: var(--border-radius-md);
+    text-align: center;
+    border-left: 4px solid var(--primary-color);
+}
+
+.holding-text {
+    font-size: var(--font-size-xs);
+    color: var(--primary-color);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* Portfolio Summary */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.summary-card {
+    background: linear-gradient(135deg, var(--gray-100), #ffffff);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-xl);
+    text-align: center;
+    border: 2px solid var(--gray-200);
+    transition: all var(--transition-normal);
+}
+
+.summary-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.summary-card h3 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cash-amount {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--success-color);
+    margin: 0;
+}
+
+.portfolio-value {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.holdings-count {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: #6f42c1;
+    margin: 0;
+}
+
+/* Holdings Grid */
+.holdings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.holding-card {
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+    border: 2px solid var(--warning-color);
+    border-radius: var(--border-radius-xl);
+    padding: var(--spacing-lg);
+    transition: all var(--transition-normal);
+}
+
+.holding-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.holding-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.holding-symbol {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xl);
+    color: var(--warning-dark);
+}
+
+.holding-shares {
+    background: var(--warning-color);
+    color: var(--warning-dark);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-lg);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+}
+
+.holding-details {
+    margin-bottom: var(--spacing-lg);
+}
+
+.holding-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--warning-dark);
+}
+
+.holding-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+/* Transaction Result Modal */
+.transaction-result {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    backdrop-filter: blur(4px);
+}
+
+.result-card {
+    background: var(--bg-primary);
+    padding: var(--spacing-xxl);
+    border-radius: var(--border-radius-xl);
+    text-align: center;
+    max-width: 400px;
+    margin: var(--spacing-lg);
+    box-shadow: var(--shadow-xl);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-card.success {
+    border-left: 6px solid var(--success-color);
+}
+
+.result-card.error {
+    border-left: 6px solid var(--danger-color);
+}
+
+.close-btn {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: var(--text-light);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    margin-top: var(--spacing-lg);
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-normal);
+}
+
+.close-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+}
+
+/* Navigation */
+.navigation {
+    text-align: center;
+    margin: var(--spacing-xxl) 0;
+}
+
+.nav-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: var(--text-light);
+    text-decoration: none;
+    border-radius: var(--border-radius-lg);
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-normal);
+    box-shadow: var(--shadow-md);
+}
+
+.nav-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+    text-decoration: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .trade-page {
+        padding: var(--spacing-md);
+    }
+
+    .stock-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .holdings-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .search-box {
+        flex-direction: column;
+    }
+
+    .trade-buttons {
+        flex-direction: column;
+    }
+
+    .holding-actions {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .search-section,
+    .popular-section,
+    .portfolio-summary,
+    .holdings-section {
+        padding: var(--spacing-lg);
+    }
+}
