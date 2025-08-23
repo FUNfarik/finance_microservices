@@ -17,4 +17,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 )
 
-replace github.com/FUNfarik/finance_microservices/proto/go => ./proto/go
+replace github.com/FUNfarik/finance_microservices/proto/go => ../proto/go
