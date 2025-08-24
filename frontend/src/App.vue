@@ -139,6 +139,12 @@ export default {
   background: transparent;
 }
 
+/* Special handling for trade route */
+.main-content.with-nav:has(.trade-page) {
+  padding: 0;
+  background: transparent;
+}
+
 /* Default background for non-dashboard pages with navigation */
 .main-content.with-nav {
   background: #f8f9fa;
