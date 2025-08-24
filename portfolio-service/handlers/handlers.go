@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"portfolio-service/models"
 	"portfolio-service/services"
-	"strconv"
 	"strings"
 )
 
@@ -41,18 +40,21 @@ func (h *Handlers) HealthHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetPortfolioHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Extract user_id from URL path
+	// Extract user_id from URL path as STRING (not int)
 	path := strings.TrimPrefix(r.URL.Path, "/portfolio/")
-	userID, err := strconv.Atoi(path)
-	if err != nil {
+	userID := strings.Trim(path, "/")
+
+	if userID == "" {
 		response := models.APIResponse{
 			Status: "error",
-			Error:  "Invalid user ID",
+			Error:  "User ID is required",
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
+
+    fmt.Printf("Getting portfolio for user: %s\n", userID)
 
 	// Get portfolio from service
 	portfolio, err := h.portfolioService.GetPortfolio(context.Background(), userID)
@@ -66,13 +68,15 @@ func (h *Handlers) GetPortfolioHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := models.APIResponse{
+
+
+    response := models.APIResponse{
 		Status:  "success",
 		Message: "Portfolio retrieved successfully",
 		Data:    portfolio,
 	}
 	json.NewEncoder(w).Encode(response)
-	fmt.Printf("📊 Portfolio requested for user %d\n", userID)
+	fmt.Printf("✅ Portfolio sent for user %s\n", userID)
 }
 
 // BuyStockHandler processes stock purchases
@@ -169,38 +173,39 @@ func (h *Handlers) SellStockHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetTransactionsHandler retrieves transaction history
 func (h *Handlers) GetTransactionsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Content-Type", "application/json")
 
-	// Extract user_id from URL path
-	path := strings.TrimPrefix(r.URL.Path, "/transactions/")
-	userID, err := strconv.Atoi(path)
-	if err != nil {
-		response := models.APIResponse{
-			Status: "error",
-			Error:  "Invalid user ID",
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
+    // Extract user_id from URL path as STRING (not int)
+    path := strings.TrimPrefix(r.URL.Path, "/transactions/")
+    userID := strings.Trim(path, "/")
 
-	// Get transactions from service
-	transactions, err := h.portfolioService.GetTransactions(context.Background(), userID)
-	if err != nil {
-		response := models.APIResponse{
-			Status: "error",
-			Error:  fmt.Sprintf("Failed to get transactions: %v", err),
-		}
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
+    if userID == "" {
+        response := models.APIResponse{
+            Status: "error",
+            Error:  "User ID is required",
+        }
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(response)
+        return
+    }
 
-	response := models.APIResponse{
-		Status:  "success",
-		Message: "Transactions retrieved successfully",
-		Data:    transactions,
-	}
-	json.NewEncoder(w).Encode(response)
-	fmt.Printf("Transaction history requested for user %d\n", userID)
+    // Get transactions from service
+    transactions, err := h.portfolioService.GetTransactions(context.Background(), userID)
+    if err != nil {
+        response := models.APIResponse{
+            Status: "error",
+            Error:  fmt.Sprintf("Failed to get transactions: %v", err),
+        }
+        w.WriteHeader(http.StatusInternalServerError)
+        json.NewEncoder(w).Encode(response)
+        return
+    }
+
+    response := models.APIResponse{
+        Status:  "success",
+        Message: "Transactions retrieved successfully",
+        Data:    transactions,
+    }
+    json.NewEncoder(w).Encode(response)
+    fmt.Printf("Transaction history requested for user %s\n", userID)
 }
