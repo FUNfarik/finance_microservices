@@ -4,7 +4,7 @@ import "time"
 
 // Portfolio represents a user's complete portfolio
 type Portfolio struct {
-	UserID     int       `json:"user_id"`
+	UserID     string       `json:"user_id"`
 	TotalValue float64   `json:"total_value"`
 	Cash       float64   `json:"cash"`
 	Holdings   []Holding `json:"holdings"`
@@ -23,7 +23,7 @@ type Holding struct {
 // Transaction represents a buy/sell transaction
 type Transaction struct {
 	ID              int       `json:"id"`
-	UserID          int       `json:"user_id"`
+	UserID          string    `json:"user_id"`
 	Symbol          string    `json:"symbol"`
 	Shares          int       `json:"shares"`
 	Price           float64   `json:"price"`
@@ -36,14 +36,14 @@ type Transaction struct {
 type BuyRequest struct {
 	Symbol string `json:"symbol"`
 	Shares int    `json:"shares"`
-	UserID int    `json:"user_id"`
+	UserID string    `json:"user_id"`
 }
 
 // SellRequest represents a stock sale request
 type SellRequest struct {
 	Symbol string `json:"symbol"`
 	Shares int    `json:"shares"`
-	UserID int    `json:"user_id"`
+	UserID string `json:"user_id"`
 }
 
 // APIResponse represents standard API response format

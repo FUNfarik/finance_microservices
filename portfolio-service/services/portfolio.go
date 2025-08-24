@@ -21,7 +21,7 @@ func NewPortfolioService(db *database.DB, marketClient *grpcclient.MarketClient)
 }
 
 // GetPortfolio retrieves a user's complete portfolio with current prices
-func (s *PortfolioService) GetPortfolio(ctx context.Context, userID int) (*models.Portfolio, error) {
+func (s *PortfolioService) GetPortfolio(ctx context.Context, userID string) (*models.Portfolio, error) {
 	// Get user's cash balance
 	cash, err := s.db.GetUserCash(userID)
 	if err != nil {
@@ -80,7 +80,7 @@ func (s *PortfolioService) GetPortfolio(ctx context.Context, userID int) (*model
 }
 
 // BuyStock processes a stock purchase
-func (s *PortfolioService) BuyStock(ctx context.Context, userID int, symbol string, shares int) error {
+func (s *PortfolioService) BuyStock(ctx context.Context, userID string, symbol string, shares int) error {
 	if shares <= 0 {
 		return fmt.Errorf("invalid shares amount: %d", shares)
 	}
@@ -170,7 +170,7 @@ func (s *PortfolioService) BuyStock(ctx context.Context, userID int, symbol stri
 }
 
 // SellStock processes a stock sale
-func (s *PortfolioService) SellStock(ctx context.Context, userID int, symbol string, shares int) error {
+func (s *PortfolioService) SellStock(ctx context.Context, userID string, symbol string, shares int) error {
 	if shares <= 0 {
 		return fmt.Errorf("invalid shares amount: %d", shares)
 	}
@@ -244,6 +244,6 @@ func (s *PortfolioService) SellStock(ctx context.Context, userID int, symbol str
 }
 
 // GetTransactions retrieves user's transaction history
-func (s *PortfolioService) GetTransactions(ctx context.Context, userID int) ([]models.Transaction, error) {
+func (s *PortfolioService) GetTransactions(ctx context.Context, userID string) ([]models.Transaction, error) {
 	return s.db.GetUserTransactions(userID)
 }

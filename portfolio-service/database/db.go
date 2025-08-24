@@ -58,7 +58,7 @@ func (db *DB) Close() error {
 }
 
 // Get users cash
-func (db *DB) GetUserCash(userID int) (float64, error) {
+func (db *DB) GetUserCash(userID string) (float64, error) {
 	var cash float64
 	err := db.conn.QueryRow("SELECT cash FROM users WHERE id = $1", userID).Scan(&cash)
 	if err != nil {
@@ -67,7 +67,7 @@ func (db *DB) GetUserCash(userID int) (float64, error) {
 	return cash, nil
 }
 
-func (db *DB) UpdateUserCash(userID int, newCash float64) error {
+func (db *DB) UpdateUserCash(userID string, newCash float64) error {
 	_, err := db.conn.Exec("UPDATE users SET cash = $1 WHERE id = $2", newCash, userID)
 	if err != nil {
 		return fmt.Errorf("error updating cash to user: %v", err)
@@ -75,7 +75,7 @@ func (db *DB) UpdateUserCash(userID int, newCash float64) error {
 	return nil
 }
 
-func (db *DB) GetUserHoldings(userID int, symbol string) (*models.Holding, error) {
+func (db *DB) GetUserHoldings(userID string, symbol string) (*models.Holding, error) {
 	var holding models.Holding
 	query := "SELECT symbol, shares, avg_price FROM holdings WHERE user_id = $1 AND symbol = $2"
 
@@ -90,7 +90,7 @@ func (db *DB) GetUserHoldings(userID int, symbol string) (*models.Holding, error
 	return &holding, nil
 }
 
-func (db *DB) UpdateUserHoldings(userID int, symbol string, shares int, avgPrice float64) error {
+func (db *DB) UpdateUserHoldings(userID string, symbol string, shares int, avgPrice float64) error {
 	query := `
        INSERT INTO holdings (user_id, symbol, shares, avg_price)
        VALUES ($1, $2, $3, $4)
@@ -106,7 +106,7 @@ func (db *DB) UpdateUserHoldings(userID int, symbol string, shares int, avgPrice
 	return nil
 }
 
-func (db *DB) CreateTransaction(userID int, symbol string, shares int, price float64, transactionType string, totalAmount float64) error {
+func (db *DB) CreateTransaction(userID string, symbol string, shares int, price float64, transactionType string, totalAmount float64) error {
 	query := `
        INSERT INTO transactions (user_id, symbol, shares, price, transaction_type, total_amount, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`
@@ -118,7 +118,7 @@ func (db *DB) CreateTransaction(userID int, symbol string, shares int, price flo
 	return nil
 }
 
-func (db *DB) GetUserTransaction(userID int) ([]models.Transaction, error) {
+func (db *DB) GetUserTransaction(userID string) ([]models.Transaction, error) {
 	query := `
 		SELECT id, user_id, symbol, shares, price, transaction_type, total_amount, created_at
 		FROM transactions
@@ -150,7 +150,7 @@ func (db *DB) BeginTx(ctx context.Context) (*sql.Tx, error) {
 }
 
 // GetAllUserHoldings retrieves all stock holdings for a user
-func (db *DB) GetAllUserHoldings(userID int) ([]models.Holding, error) {
+func (db *DB) GetAllUserHoldings(userID string) ([]models.Holding, error) {
 	query := `
 		SELECT symbol, shares, avg_price 
 		FROM holdings 
@@ -177,16 +177,16 @@ func (db *DB) GetAllUserHoldings(userID int) ([]models.Holding, error) {
 }
 
 // GetUserHolding gets specific stock holding for user (rename your existing function)
-func (db *DB) GetUserHolding(userID int, symbol string) (*models.Holding, error) {
+func (db *DB) GetUserHolding(userID string, symbol string) (*models.Holding, error) {
 	return db.GetUserHoldings(userID, symbol)
 }
 
 // UpsertHolding - rename your existing UpdateUserHoldings
-func (db *DB) UpsertHolding(userID int, symbol string, shares int, avgPrice float64) error {
+func (db *DB) UpsertHolding(userID string, symbol string, shares int, avgPrice float64) error {
 	return db.UpdateUserHoldings(userID, symbol, shares, avgPrice)
 }
 
 // GetUserTransactions - rename your existing function
-func (db *DB) GetUserTransactions(userID int) ([]models.Transaction, error) {
+func (db *DB) GetUserTransactions(userID string) ([]models.Transaction, error) {
 	return db.GetUserTransaction(userID)
 }
