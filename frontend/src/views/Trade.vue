@@ -1,6 +1,6 @@
 <template>
   <div class="trade-page">
-    <h1>🔄 Trade Stocks</h1>
+    <h1>Trade Stocks</h1>
 
     <!-- Stock Search Section -->
     <div class="search-section">
@@ -26,8 +26,7 @@
         <div class="stock-name">{{ stockData.name }}</div>
         <div class="stock-price">${{ stockData.price.toFixed(2) }}</div>
         <div class="stock-change" :class="changeClass">
-          {{ stockData.change > 0 ? '+' : '' }}{{ stockData.change.toFixed(2) }}
-          ({{ stockData.changePercent > 0 ? '+' : '' }}{{ stockData.changePercent.toFixed(2) }}%)
+          {{ stockData.changePercent > 0 ? '+' : '' }}{{ stockData.changePercent.toFixed(2) }}%
         </div>
       </div>
 
@@ -77,7 +76,7 @@
           <div v-if="tradeType === 'buy'" class="cash-check">
             <p><strong>Available Cash:</strong> ${{ userCash.toFixed(2) }}</p>
             <p v-if="totalAmount > userCash" class="insufficient-funds">
-              ⚠️ Insufficient funds
+              Insufficient funds
             </p>
           </div>
 
@@ -85,7 +84,7 @@
           <div v-if="tradeType === 'sell'" class="holdings-check">
             <p><strong>Current Holdings:</strong> {{ currentShares }} shares</p>
             <p v-if="shares > currentShares" class="insufficient-shares">
-              ⚠️ Insufficient shares
+              Insufficient shares
             </p>
           </div>
         </div>
@@ -154,7 +153,7 @@ export default {
     // Check if stock price went up or down
     changeClass() {
       if (!this.stockData) return ''
-      return this.stockData.change >= 0 ? 'positive' : 'negative'
+      return this.stockData.changePercent >= 0 ? 'positive' : 'negative'
     },
 
     // Current shares of this stock
@@ -207,17 +206,30 @@ export default {
       this.error = null
 
       try {
-        // Use your market service - getStockPrice returns full quote data
-        const data = await marketService.getStockPrice(this.stockSymbol.toUpperCase())
+        console.log('Fetching stock data for:', this.stockSymbol) // Debug log
 
-        this.stockData = {
-          symbol: data.symbol,
-          name: data.name || data.company_name || 'Unknown Company',
-          price: data.price || data.current_price,
-          changePercent: data.change_percent || data.percentage_change || 0
+        // Direct API call since your Rust service is working
+        const response = await fetch(`http://localhost:8002/stock/${this.stockSymbol.toUpperCase()}`)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch stock data: ${response.status}`)
         }
 
+        const data = await response.json()
+        console.log('API Response:', data) // Debug log
+
+        // Map the API response to match your template expectations
+        this.stockData = {
+          symbol: data.symbol,
+          name: data.name,
+          price: data.price,
+          changePercent: data.change_percent
+        }
+
+        console.log('Mapped stock data:', this.stockData) // Debug log
+
       } catch (err) {
+        console.error('Error fetching stock:', err)
         this.error = err.message || 'Failed to fetch stock data'
         this.stockData = null
       } finally {
@@ -234,14 +246,14 @@ export default {
 
       try {
         const tradeData = {
-           symbol: this.stockData.symbol,
-           shares: this.shares,
-           price: this.stockData.price,
-           trade_type: this.tradeType
+          symbol: this.stockData.symbol,
+          shares: this.shares,
+          price: this.stockData.price,
+          trade_type: this.tradeType
         }
-         const result = await portfolioService.executeTrade(tradeData)
+        // const result = await portfolioService.executeTrade(tradeData)
 
-        // Simulate trade success
+        // Simulate trade success for now
         if (this.tradeType === 'buy') {
           this.userCash -= this.totalAmount
           this.userHoldings[this.stockData.symbol] = (this.userHoldings[this.stockData.symbol] || 0) + this.shares
