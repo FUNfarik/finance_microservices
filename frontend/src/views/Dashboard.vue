@@ -171,14 +171,12 @@ export default {
 
   data() {
     return {
-      // Testing flag - set to false for production, true for development
-      showTesting: false, // Change this to true when you need testing
-
-      testing: false,
-      serviceStatus: [],
       isRefreshing: false,
       updatingPrices: false,
-      showTransactionHistory: false
+      showTransactionHistory: false,
+      // Add these back if needed
+      testing: false,
+      serviceStatus: []
     }
   },
 
@@ -265,6 +263,7 @@ export default {
     },
 
     goToTrade(symbol = '') {
+      console.log('Navigating to trade with symbol:', symbol) // Debug line
       this.$router.push({
         path: '/trade',
         query: symbol ? { symbol } : {}

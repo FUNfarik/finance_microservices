@@ -3,6 +3,7 @@
     max-width: var(--breakpoint-xxl);
     margin: 0 auto;
     padding: var(--spacing-lg);
+    background: var(--bg-secondary); /* instead of gradient */
 }
 
 .trade-page h1 {
@@ -23,14 +24,15 @@
 }
 
 /* Section Containers */
+.trade-page section,
 .search-section,
 .popular-section,
 .portfolio-summary,
 .holdings-section {
-    background: var(--bg-primary);
-    padding: var(--spacing-xxl);
+    background: var(--bg-primary); /* clean solid background */
     border-radius: var(--border-radius-xl);
     box-shadow: var(--shadow-lg);
+    padding: var(--spacing-xl);
     margin-bottom: var(--spacing-xl);
     border: 1px solid var(--gray-200);
 }
@@ -93,7 +95,7 @@
 
 /* Stock Card */
 .stock-card {
-    background: linear-gradient(135deg, var(--gray-100), #ffffff);
+    background: var(--bg-primary); /* ✅ no gradient */
     border: 2px solid var(--gray-200);
     border-radius: var(--border-radius-xl);
     padding: var(--spacing-lg);
@@ -283,10 +285,13 @@
 }
 
 /* Portfolio Summary */
-.summary-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-lg);
+.summary-card {
+    background: var(--bg-primary); /* ✅ solid */
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-xl);
+    text-align: center;
+    border: 2px solid var(--gray-200);
+    transition: all var(--transition-normal);
 }
 
 .summary-card {
@@ -341,7 +346,7 @@
 }
 
 .holding-card {
-    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+    background: var(--bg-primary); /* ✅ clean solid background */
     border: 2px solid var(--warning-color);
     border-radius: var(--border-radius-xl);
     padding: var(--spacing-lg);
