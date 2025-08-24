@@ -1,211 +1,147 @@
 <template>
-  <div class="trade-page">
-    <h1>Trade Stocks</h1>
-
-    <!-- Quick Portfolio Summary -->
-    <div class="portfolio-summary">
-      <div class="summary-cards">
-        <div class="summary-card">
-          <h3>Available Cash</h3>
-          <p class="cash-amount">${{ formatCurrency(portfolio.cash) }}</p>
-        </div>
-        <div class="summary-card">
-          <h3>Portfolio Value</h3>
-          <p class="portfolio-value">${{ formatCurrency(portfolio.total_value) }}</p>
-        </div>
-        <div class="summary-card">
-          <h3>Holdings</h3>
-          <p class="holdings-count">{{ portfolio.holdings?.length || 0 }}</p>
-        </div>
+  <div class="dashboard">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+      <div class="header-content">
+        <h1>Portfolio Dashboard</h1>
+        <p class="welcome-text">Welcome back! Here's your portfolio overview</p>
       </div>
-    </div>
-
-    <!-- Stock Search Section -->
-    <div class="search-section">
-      <h2>📈 Stock Lookup</h2>
-      <div class="search-box">
-        <input
-            v-model="stockSymbol"
-            type="text"
-            placeholder="Enter stock symbol (e.g., AAPL, MSFT, GOOGL)"
-            @input="onSymbolChange"
-            @keyup.enter="lookupStock"
-            class="search-input"
-        />
-        <button @click="lookupStock" :disabled="!stockSymbol || loading" class="search-btn">
-          {{ loading ? 'Loading...' : 'Get Quote' }}
+      <div class="header-actions">
+        <button @click="refreshData" :disabled="isRefreshing" class="refresh-btn">
+          <span :class="{ 'spinning': isRefreshing }">🔄</span>
+          {{ isRefreshing ? 'Refreshing...' : 'Refresh' }}
         </button>
-      </div>
-
-      <!-- Display stock info when found -->
-      <div v-if="stockData" class="stock-card">
-        <div class="stock-header">
-          <div class="stock-symbol">{{ stockData.symbol }}</div>
-        </div>
-        <div class="stock-name">{{ stockData.name }}</div>
-        <div class="stock-price">${{ stockData.price.toFixed(2) }}</div>
-        <div class="stock-change" :class="changeClass">
-          {{ stockData.changePercent > 0 ? '+' : '' }}{{ stockData.changePercent.toFixed(2) }}%
-        </div>
-
-        <!-- Current Holdings Display -->
-        <div v-if="currentShares > 0" class="current-holding">
-          <span class="holding-text">You own {{ currentShares }} shares</span>
-        </div>
-      </div>
-
-      <!-- Error message -->
-      <div v-if="error" class="error">
-        {{ error }}
+        <span v-if="lastUpdate" class="last-update">
+          Updated: {{ formatTimestamp(lastUpdate) }}
+        </span>
       </div>
     </div>
 
-    <!-- Trading Form Section -->
-    <div v-if="stockData" class="search-section">
-      <h2>📋 Place Order</h2>
-
-      <!-- Trade Type Selection -->
-      <div class="trade-type">
-        <label>
-          <input type="radio" v-model="tradeType" value="buy" />
-          <span class="radio-label buy-label">Buy</span>
-        </label>
-        <label>
-          <input type="radio" v-model="tradeType" value="sell" />
-          <span class="radio-label sell-label">Sell</span>
-        </label>
+    <!-- Portfolio Stats -->
+    <div class="stats-grid cols-4">
+      <div class="stat-card primary">
+        <div class="stat-icon">💰</div>
+        <div class="stat-content">
+          <h3>Portfolio Value</h3>
+          <p class="big-number">${{ formatCurrency(portfolio.total_value) }}</p>
+          <span :class="['change', portfolio.total_gain_loss >= 0 ? 'positive' : 'negative']">
+            {{ portfolio.total_gain_loss >= 0 ? '+' : '' }}${{ formatCurrency(portfolio.total_gain_loss) }}
+            ({{ portfolio.total_gain_loss_percent?.toFixed(2) }}%)
+          </span>
+        </div>
       </div>
 
-      <div class="trade-controls">
-        <!-- Quantity Control -->
-        <div class="quantity-control">
-          <button @click="decreaseShares" class="qty-btn" :disabled="shares <= 1">-</button>
-          <input
-              v-model.number="shares"
-              type="number"
-              min="1"
-              :max="tradeType === 'sell' ? currentShares : 9999"
-              class="qty-input"
-          />
-          <button @click="increaseShares" class="qty-btn">+</button>
+      <div class="stat-card">
+        <div class="stat-icon">💵</div>
+        <div class="stat-content">
+          <h3>Cash Balance</h3>
+          <p class="big-number">${{ formatCurrency(portfolio.cash) }}</p>
+          <span class="subtext">Available to trade</span>
         </div>
+      </div>
 
-        <!-- Quick quantity buttons -->
-        <div class="quick-qty">
-          <button v-if="tradeType === 'sell' && currentShares > 0"
-                  @click="shares = Math.floor(currentShares / 4)"
-                  class="quick-btn">25%</button>
-          <button v-if="tradeType === 'sell' && currentShares > 0"
-                  @click="shares = Math.floor(currentShares / 2)"
-                  class="quick-btn">50%</button>
-          <button v-if="tradeType === 'sell' && currentShares > 0"
-                  @click="shares = currentShares"
-                  class="quick-btn">All</button>
-
-          <button v-if="tradeType === 'buy'"
-                  @click="setMaxBuyShares"
-                  class="quick-btn">Max</button>
+      <div class="stat-card">
+        <div class="stat-icon">📈</div>
+        <div class="stat-content">
+          <h3>Total Net Worth</h3>
+          <p class="big-number">${{ formatCurrency(totalNetWorth) }}</p>
+          <span class="subtext">Portfolio + Cash</span>
         </div>
+      </div>
 
-        <!-- Order Summary -->
-        <div v-if="shares > 0" class="order-summary">
-          <h3>Order Summary</h3>
-          <div class="summary-row">
-            <span>Action:</span>
-            <span><strong>{{ tradeType.toUpperCase() }} {{ shares }} shares of {{ stockData.symbol }}</strong></span>
-          </div>
-          <div class="summary-row">
-            <span>Price per share:</span>
-            <span>${{ stockData.price.toFixed(2) }}</span>
-          </div>
-          <div class="summary-row total-row">
-            <span>Total {{ tradeType === 'buy' ? 'Cost' : 'Proceeds' }}:</span>
-            <span class="total-amount">${{ totalAmount.toFixed(2) }}</span>
-          </div>
-
-          <!-- Available cash check for buying -->
-          <div v-if="tradeType === 'buy'" class="validation-check">
-            <div class="check-row">
-              <span>Available Cash:</span>
-              <span>${{ formatCurrency(portfolio.cash) }}</span>
-            </div>
-            <div v-if="totalAmount > portfolio.cash" class="insufficient-funds">
-              ⚠️ Insufficient funds (need ${{ formatCurrency(totalAmount - portfolio.cash) }} more)
-            </div>
-          </div>
-
-          <!-- Holdings check for selling -->
-          <div v-if="tradeType === 'sell'" class="validation-check">
-            <div class="check-row">
-              <span>Current Holdings:</span>
-              <span>{{ currentShares }} shares</span>
-            </div>
-            <div v-if="shares > currentShares" class="insufficient-shares">
-              ⚠️ Insufficient shares (you only own {{ currentShares }} shares)
-            </div>
-          </div>
-        </div>
-
-        <!-- Trade Button -->
-        <div class="trade-buttons">
-          <button
-              @click="executeTrade"
-              :disabled="!canTrade || executing"
-              :class="['trade-btn-main', tradeType === 'buy' ? 'buy-btn' : 'sell-btn']"
-          >
-            <span v-if="executing" class="loading-spinner">⏳</span>
-            {{ executing ? 'Processing...' : `${tradeType.toUpperCase()} ${shares} Shares` }}
-          </button>
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-content">
+          <h3>Holdings</h3>
+          <p class="big-number">{{ portfolio.holdings?.length || 0 }}</p>
+          <span class="subtext">Unique positions</span>
         </div>
       </div>
     </div>
 
-    <!-- Success Message -->
-    <div v-if="successMessage" class="transaction-result" @click="clearMessage">
-      <div class="result-card success">
-        <div class="success-icon">✅</div>
-        <h3>Trade Successful!</h3>
-        <p>{{ successMessage }}</p>
-        <div class="result-actions">
-          <button @click="clearMessage" class="close-btn">Continue Trading</button>
-          <router-link to="/dashboard" class="dashboard-btn">View Dashboard</router-link>
-        </div>
+    <!-- Portfolio Content -->
+    <div class="portfolio-content">
+      <!-- Error Display -->
+      <div v-if="errors.portfolio" class="error-banner">
+        <span>⚠️ Failed to load portfolio data: {{ errors.portfolio }}</span>
+        <button @click="clearError('portfolio')" class="error-close">×</button>
       </div>
-    </div>
 
-    <!-- Holdings Summary -->
-    <div v-if="portfolio.holdings?.length > 0" class="holdings-section">
-      <h2>📊 Your Holdings</h2>
-      <div class="holdings-grid">
-        <div v-for="holding in portfolio.holdings" :key="holding.symbol" class="holding-card">
-          <div class="holding-header">
-            <span class="holding-symbol">{{ holding.symbol }}</span>
-            <span class="holding-shares">{{ holding.shares }} shares</span>
+      <!-- Holdings Table -->
+      <div class="holdings-section">
+        <div class="section-header">
+          <h2>Your Holdings</h2>
+          <div class="section-actions">
+            <button @click="updatePrices" :disabled="updatingPrices" class="update-prices-btn">
+              {{ updatingPrices ? 'Updating...' : 'Update Prices' }}
+            </button>
           </div>
-          <div class="holding-details">
-            <div class="holding-row">
-              <span>Avg Price:</span>
-              <span>${{ formatCurrency(holding.avg_price) }}</span>
-            </div>
-            <div class="holding-row">
-              <span>Current:</span>
-              <span>${{ formatCurrency(holding.current_price || 0) }}</span>
-            </div>
-            <div class="holding-row">
-              <span>Value:</span>
-              <span>${{ formatCurrency(holding.market_value || 0) }}</span>
-            </div>
+        </div>
+
+        <div v-if="loading.portfolio" class="loading">
+          <div class="spinner"></div>
+          <p>Loading portfolio...</p>
+        </div>
+
+        <div v-else-if="portfolio.holdings?.length > 0" class="holdings-table">
+          <div class="table-header">
+            <span>Symbol</span>
+            <span>Shares</span>
+            <span>Avg Price</span>
+            <span>Current Price</span>
+            <span>Market Value</span>
+            <span>Gain/Loss</span>
+            <span>Actions</span>
           </div>
-          <div class="holding-actions">
-            <button @click="quickTrade(holding.symbol, 'buy')" class="quick-action-btn buy">Buy More</button>
-            <button @click="quickTrade(holding.symbol, 'sell')" class="quick-action-btn sell">Sell</button>
+
+          <div v-for="holding in portfolio.holdings" :key="holding.symbol" class="table-row">
+            <span class="symbol">{{ holding.symbol }}</span>
+            <span class="shares">{{ holding.shares }}</span>
+            <span class="price">${{ formatCurrency(holding.avg_price) }}</span>
+            <span class="current-price">
+              ${{ formatCurrency(holding.current_price || 0) }}
+              <span v-if="!holding.current_price" class="price-updating">📊</span>
+            </span>
+            <span class="market-value">${{ formatCurrency(holding.market_value || 0) }}</span>
+            <span :class="['gain-loss', (holding.gain_loss || 0) >= 0 ? 'positive' : 'negative']">
+              {{ (holding.gain_loss || 0) >= 0 ? '+' : '' }}${{ formatCurrency(holding.gain_loss || 0) }}
+            </span>
+            <span class="actions">
+              <button @click="goToTrade(holding.symbol)" class="action-btn trade-btn">Trade</button>
+            </span>
+          </div>
+        </div>
+
+        <div v-else class="no-holdings">
+          <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <h3>No Holdings Yet</h3>
+            <p>Start building your portfolio by trading stocks</p>
+            <router-link to="/trade" class="cta-button">Start Trading</router-link>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="navigation">
-      <router-link to="/dashboard" class="nav-button">← Back to Dashboard</router-link>
+    <!-- Quick Actions -->
+    <div class="quick-actions cols-3">
+      <router-link to="/trade" class="action-card trade">
+        <div class="action-icon">💹</div>
+        <h3>Trade Stocks</h3>
+        <p>Buy and sell stocks</p>
+      </router-link>
+
+      <div class="action-card history" @click="showTransactionHistory = true">
+        <div class="action-icon">📋</div>
+        <h3>History</h3>
+        <p>View past transactions</p>
+      </div>
+
+      <div class="action-card refresh" @click="refreshData">
+        <div class="action-icon">🔄</div>
+        <h3>Refresh</h3>
+        <p>Update all data</p>
+      </div>
     </div>
   </div>
 </template>
@@ -214,7 +150,7 @@
 import { useUserStore } from '../stores/user'
 
 export default {
-  name: 'Trade',
+  name: 'Dashboard',
   setup() {
     const userStore = useUserStore()
     return { userStore }
@@ -222,169 +158,60 @@ export default {
 
   data() {
     return {
-      // Stock lookup
-      stockSymbol: '',
-      stockData: null,
-      loading: false,
-      error: null,
-
-      // Trading form
-      tradeType: 'buy',
-      shares: 1,
-      executing: false,
-      successMessage: ''
+      isRefreshing: false,
+      updatingPrices: false,
+      showTransactionHistory: false
     }
   },
 
   computed: {
     portfolio() { return this.userStore.portfolio },
-
-    // Calculate total cost/proceeds
-    totalAmount() {
-      if (!this.stockData || !this.shares) return 0
-      return this.stockData.price * this.shares
-    },
-
-    // Check if stock price went up or down
-    changeClass() {
-      if (!this.stockData) return ''
-      return this.stockData.changePercent >= 0 ? 'positive' : 'negative'
-    },
-
-    // Current shares of this stock
-    currentShares() {
-      return this.userStore.getShares(this.stockData?.symbol)
-    },
-
-    // Can the user execute this trade?
-    canTrade() {
-      if (!this.stockData || !this.shares || this.shares <= 0) return false
-
-      if (this.tradeType === 'buy') {
-        return this.userStore.canAfford(this.totalAmount)
-      } else {
-        return this.userStore.canSell(this.stockData.symbol, this.shares)
-      }
-    }
+    loading() { return this.userStore.loading },
+    errors() { return this.userStore.errors },
+    lastUpdate() { return this.userStore.lastUpdate },
+    totalNetWorth() { return this.userStore.totalNetWorth }
   },
 
   async mounted() {
-    // Load user data and check for symbol in query params
-    await this.userStore.loadPortfolio()
+    // Initialize demo user for development
+    this.userStore.initDemoUser()
 
-    if (this.$route.query.symbol) {
-      this.stockSymbol = this.$route.query.symbol.toUpperCase()
-      await this.lookupStock()
-    }
+    // Load portfolio data on mount
+    await this.userStore.loadPortfolio()
   },
 
   methods: {
-    // Clear previous data when symbol changes
-    onSymbolChange() {
-      this.stockData = null
-      this.error = null
-      this.successMessage = ''
-      this.shares = 1
-    },
-
-    // Look up stock information
-    async lookupStock() {
-      if (!this.stockSymbol) return
-
-      this.loading = true
-      this.error = null
-
+    async refreshData() {
+      this.isRefreshing = true
       try {
-        const response = await fetch(`http://localhost:8002/stock/${this.stockSymbol.toUpperCase()}`)
-
-        if (!response.ok) {
-          throw new Error(`Stock not found or API error: ${response.status}`)
-        }
-
-        const data = await response.json()
-
-        this.stockData = {
-          symbol: data.symbol,
-          name: data.name,
-          price: data.price,
-          changePercent: data.change_percent
-        }
-
-        // Update URL with symbol
-        this.$router.replace({
-          query: { ...this.$route.query, symbol: data.symbol }
-        })
-
-      } catch (err) {
-        console.error('Error fetching stock:', err)
-        this.error = err.message || 'Failed to fetch stock data'
-        this.stockData = null
+        await this.userStore.refreshPortfolio()
       } finally {
-        this.loading = false
+        this.isRefreshing = false
       }
     },
 
-    // Execute the trade using Pinia store
-    async executeTrade() {
-      if (!this.canTrade) return
-
-      this.executing = true
-      this.error = null
-
+    async updatePrices() {
+      this.updatingPrices = true
       try {
-        const tradeData = {
-          symbol: this.stockData.symbol,
-          shares: this.shares,
-          price: this.stockData.price,
-          trade_type: this.tradeType
-        }
-
-        await this.userStore.executeTrade(tradeData)
-
-        this.successMessage = `Successfully ${this.tradeType === 'buy' ? 'bought' : 'sold'} ${this.shares} shares of ${this.stockData.symbol} at $${this.stockData.price.toFixed(2)} per share`
-
-        // Reset form
-        this.shares = 1
-
-      } catch (err) {
-        this.error = err.message || 'Trade execution failed'
+        await this.userStore.updateHoldingsPrices()
       } finally {
-        this.executing = false
+        this.updatingPrices = false
       }
     },
 
-    // Quick trade actions
-    quickTrade(symbol, action) {
-      this.stockSymbol = symbol
-      this.tradeType = action
-      this.lookupStock()
+    async testServices() {
+      // Method removed - testing completed
     },
 
-    // Quantity control methods
-    increaseShares() {
-      if (this.tradeType === 'sell' && this.shares >= this.currentShares) {
-        return
-      }
-      this.shares += 1
+    clearError(type) {
+      this.userStore.clearError(type)
     },
 
-    decreaseShares() {
-      if (this.shares > 1) {
-        this.shares -= 1
-      }
-    },
-
-    // Set maximum buyable shares based on available cash
-    setMaxBuyShares() {
-      if (this.stockData && this.portfolio.cash > 0) {
-        const maxShares = Math.floor(this.portfolio.cash / this.stockData.price)
-        this.shares = Math.max(1, maxShares)
-      }
-    },
-
-    // Clear success message
-    clearMessage() {
-      this.successMessage = ''
+    goToTrade(symbol = '') {
+      this.$router.push({
+        path: '/trade',
+        query: symbol ? { symbol } : {}
+      })
     },
 
     formatCurrency(amount) {
@@ -392,181 +219,81 @@ export default {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       }).format(amount || 0)
+    },
+
+    formatTimestamp(timestamp) {
+      return new Date(timestamp).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })
     }
   }
 }
 </script>
 
 <style scoped>
-@import '../styles/components/trade.css';
-
-/* Additional enhanced styles */
-.portfolio-summary {
-  margin-bottom: 30px;
-}
-
-.trade-type {
-  display: flex;
-  gap: 30px;
-  margin: 20px 0;
-  justify-content: center;
-}
-
-.trade-type label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.trade-type input[type="radio"] {
-  display: none;
-}
-
-.radio-label {
-  padding: 12px 24px;
-  border: 2px solid #dee2e6;
-  border-radius: 25px;
-  font-weight: 600;
-  font-size: 1.1rem;
-  transition: all 0.3s;
-  min-width: 80px;
-  text-align: center;
-}
-
-.buy-label {
-  color: #28a745;
-  border-color: #28a745;
-}
-
-.sell-label {
-  color: #dc3545;
-  border-color: #dc3545;
-}
-
-.trade-type input[type="radio"]:checked + .buy-label {
-  background: #28a745;
-  color: white;
-}
-
-.trade-type input[type="radio"]:checked + .sell-label {
-  background: #dc3545;
-  color: white;
-}
-
-.quick-qty {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin: 15px 0;
-}
-
-.quick-btn {
-  padding: 6px 12px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.3s;
-}
-
-.quick-btn:hover {
-  background: #e9ecef;
-}
-
-.order-summary {
-  background: linear-gradient(135deg, #f8f9fa, #ffffff);
-  border-radius: 12px;
+.dashboard {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
-  margin: 20px 0;
-  border: 2px solid #e9ecef;
 }
 
-.summary-row {
+.dashboard-header {
+  background: white;
+  border-radius: 12px;
+  padding: 24px 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
-  padding: 5px 0;
+  align-items: flex-start;
 }
 
-.total-row {
-  border-top: 2px solid #dee2e6;
-  margin-top: 15px;
-  padding-top: 15px;
+.header-content h1 {
+  color: #333;
+  margin: 0 0 5px 0;
+  font-size: 2.5rem;
+  font-weight: 600;
+}
+
+.welcome-text {
+  color: #666;
+  margin: 0;
   font-size: 1.1rem;
 }
 
-.total-amount {
-  font-weight: bold;
-  color: #007bff;
-  font-size: 1.2rem;
-}
-
-.validation-check {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #dee2e6;
-}
-
-.check-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.insufficient-funds, .insufficient-shares {
-  color: #dc3545;
-  font-weight: 600;
-  background: #f8d7da;
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-top: 10px;
-}
-
-.trade-btn-main {
-  width: 100%;
-  padding: 15px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 1.1rem;
-  transition: all 0.3s;
+.header-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 15px;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
   gap: 8px;
-}
-
-.buy-btn {
-  background: linear-gradient(135deg, #28a745, #1e7e34);
+  padding: 10px 16px;
+  background: #007bff;
   color: white;
   border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
 }
 
-.sell-btn {
-  background: linear-gradient(135deg, #dc3545, #c82333);
-  color: white;
-  border: none;
+.refresh-btn:hover:not(:disabled) {
+  background: #0056b3;
 }
 
-.buy-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-}
-
-.sell-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
-}
-
-.buy-btn:disabled,
-.sell-btn:disabled {
-  background: #6c757d;
+.refresh-btn:disabled {
+  background: #ccc;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
 
-.loading-spinner {
+.spinning {
   animation: spin 1s linear infinite;
 }
 
@@ -575,168 +302,507 @@ export default {
   to { transform: rotate(360deg); }
 }
 
-.transaction-result {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
+.last-update {
+  font-size: 0.9rem;
+  color: #666;
 }
 
-.result-card {
-  background: white;
-  padding: 40px;
-  border-radius: 16px;
-  text-align: center;
-  max-width: 450px;
-  margin: 20px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-  animation: slideIn 0.4s ease;
-}
-
-.success-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
-}
-
-.result-actions {
-  display: flex;
-  gap: 15px;
-  margin-top: 25px;
-}
-
-.close-btn, .dashboard-btn {
-  flex: 1;
-  padding: 12px 20px;
-  border-radius: 6px;
-  font-weight: 600;
-  text-decoration: none;
-  text-align: center;
-  transition: all 0.3s;
-}
-
-.close-btn {
-  background: #28a745;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-.dashboard-btn {
-  background: #007bff;
-  color: white;
-}
-
-.holdings-grid {
+/* Grid System for Cards */
+.stats-grid,
+.quick-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
+  gap: 25px;
+  margin-bottom: 40px;
 }
 
-.holding-card {
-  background: white;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.3s;
+/* Default: Auto-fit responsive grid */
+.stats-grid,
+.quick-actions {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
-.holding-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+/* 1 Column Layout */
+.stats-grid.cols-1,
+.quick-actions.cols-1 {
+  grid-template-columns: 1fr;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.holding-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+/* 2 Column Layout */
+.stats-grid.cols-2,
+.quick-actions.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
 }
 
-.holding-symbol {
-  font-weight: bold;
-  font-size: 1.3rem;
-  color: #007bff;
+/* 3 Column Layout */
+.stats-grid.cols-3,
+.quick-actions.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
 }
 
-.holding-shares {
-  background: #e7f3ff;
-  color: #0066cc;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
+/* 4 Column Layout */
+.stats-grid.cols-4,
+.quick-actions.cols-4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 
-.holding-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 0.95rem;
-}
-
-.holding-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 15px;
-}
-
-.quick-action-btn {
-  flex: 1;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.3s;
-}
-
-.quick-action-btn.buy {
-  background: #28a745;
-  color: white;
-}
-
-.quick-action-btn.sell {
-  background: #dc3545;
-  color: white;
-}
-
-.quick-action-btn:hover {
-  transform: translateY(-1px);
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-30px) scale(0.95);
+/* Responsive behavior for column layouts */
+@media (max-width: 1200px) {
+  .stats-grid.cols-4,
+  .quick-actions.cols-4 {
+    grid-template-columns: repeat(2, 1fr);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+
+  .stats-grid.cols-3,
+  .quick-actions.cols-3 {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .trade-type {
+  .stats-grid.cols-4,
+  .stats-grid.cols-3,
+  .stats-grid.cols-2,
+  .quick-actions.cols-4,
+  .quick-actions.cols-3,
+  .quick-actions.cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ensure cards have consistent minimum widths */
+.stat-card,
+.action-card {
+  min-width: 250px;
+}
+
+.stat-card {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #dee2e6;
+}
+
+.stat-card.primary::before {
+  background: #007bff;
+}
+
+.stat-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+  font-size: 3rem;
+  opacity: 0.8;
+}
+
+.stat-content h3 {
+  margin: 0 0 8px 0;
+  color: #666;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.big-number {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #333;
+  margin: 8px 0;
+}
+
+.change {
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.change.positive {
+  color: #28a745;
+}
+
+.change.negative {
+  color: #dc3545;
+}
+
+.subtext {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+.error-banner {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  color: #721c24;
+  padding: 16px 20px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #f5c6cb;
+}
+
+.error-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #721c24;
+  padding: 0 5px;
+}
+
+.holdings-section {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  margin-bottom: 40px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f8f9fa;
+}
+
+.section-header h2 {
+  color: #333;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.update-prices-btn {
+  padding: 8px 14px;
+  background: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.update-prices-btn:hover:not(:disabled) {
+  background: #138496;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.holdings-table {
+  overflow-x: auto;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1.2fr 1.2fr 0.8fr;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 2px solid #e9ecef;
+  font-weight: 600;
+  color: #495057;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1.2fr 1.2fr 0.8fr;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid #f1f3f4;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.table-row:hover {
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.symbol {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 1.1rem;
+}
+
+.shares, .price, .market-value {
+  font-weight: 500;
+  color: #495057;
+}
+
+.current-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.price-updating {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.gain-loss {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.gain-loss.positive {
+  color: #28a745;
+}
+
+.gain-loss.negative {
+  color: #dc3545;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trade-btn {
+  background: #007bff;
+  color: white;
+}
+
+.trade-btn:hover {
+  background: #0056b3;
+}
+
+.no-holdings {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.empty-state {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  opacity: 0.6;
+}
+
+.empty-state h3 {
+  color: #495057;
+  margin-bottom: 12px;
+  font-size: 1.5rem;
+}
+
+.empty-state p {
+  color: #6c757d;
+  margin-bottom: 30px;
+  font-size: 1.1rem;
+}
+
+.cta-button {
+  display: inline-block;
+  padding: 12px 24px;
+  background: #28a745;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 1rem;
+  transition: background-color 0.2s ease;
+}
+
+.cta-button:hover {
+  text-decoration: none;
+  color: white;
+  background: #1e7e34;
+}
+
+.quick-actions {
+  display: grid;
+  gap: 25px;
+}
+
+.action-card {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #dee2e6;
+}
+
+.action-card.trade::before {
+  background: #007bff;
+}
+
+.action-card.history::before {
+  background: #6c757d;
+}
+
+.action-card.refresh::before {
+  background: #28a745;
+}
+
+.action-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+  color: inherit;
+}
+
+.action-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  opacity: 0.8;
+}
+
+.action-card h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.action-card p {
+  margin: 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 15px;
+  }
+
+  .dashboard-header {
     flex-direction: column;
-    align-items: center;
+    gap: 20px;
+    text-align: center;
+    padding: 25px;
+  }
+
+  .header-content h1 {
+    font-size: 2rem;
+  }
+
+  .header-actions {
+    flex-direction: row;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 25px;
+  }
+
+  .holdings-section {
+    padding: 20px;
+  }
+
+  .table-header,
+  .table-row {
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 15px;
   }
 
-  .holdings-grid {
-    grid-template-columns: 1fr;
+  .table-header span:nth-child(n+4),
+  .table-row span:nth-child(n+4) {
+    display: none;
   }
 
-  .result-actions {
-    flex-direction: column;
+  .quick-actions {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-header {
+    padding: 20px;
+  }
+
+  .header-content h1 {
+    font-size: 1.8rem;
+  }
+
+  .stat-card {
+    padding: 20px;
+  }
+
+  .holdings-section {
+    padding: 15px;
   }
 }
 </style>

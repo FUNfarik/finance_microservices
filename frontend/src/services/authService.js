@@ -11,6 +11,31 @@ class AuthService {
         }
     }
 
+    async register(userData) {
+        try {
+            const response = await authApi.post('/register', {
+                username: `${userData.firstName} ${userData.lastName}`.trim(), // Combine first and last name
+                email: userData.email,
+                password: userData.password
+            })
+
+            // Just return success, don't auto-login
+            // Let the user manually sign in after registration
+            return response.data
+        } catch (error) {
+            console.error('Registration failed:', error)
+
+            // Handle different error types based on your Go backend
+            if (error.response?.status === 400) {
+                throw new Error(error.response.data.error || 'Registration failed - please check your information')
+            } else if (error.response?.status === 409) {
+                throw new Error('Username or email already exists')
+            } else {
+                throw new Error('Registration failed - please try again')
+            }
+        }
+    }
+
     async login(email, password) {
         try {
             const response = await authApi.post('/login', {
@@ -18,20 +43,51 @@ class AuthService {
                 password
             })
 
+            // Store the token if provided
             if (response.data.token) {
                 setAuthToken(response.data.token)
+                localStorage.setItem('finance_token', response.data.token)
+
+                // Store user info if provided
+                if (response.data.user) {
+                    localStorage.setItem('finance_user', JSON.stringify(response.data.user))
+                }
             }
 
             return response.data
         } catch (error) {
             console.error('Login failed:', error)
-            throw error
+
+            // Handle different error types based on your Go backend
+            if (error.response?.status === 401) {
+                throw new Error('Invalid email or password')
+            } else if (error.response?.status === 400) {
+                throw new Error(error.response.data.error || 'Please check your email and password')
+            } else {
+                throw new Error('Login failed - please try again')
+            }
         }
+    }
+
+    logout() {
+        // Clear all stored auth data
+        localStorage.removeItem('finance_token')
+        localStorage.removeItem('finance_user')
+        setAuthToken(null)
     }
 
     isAuthenticated() {
         const token = localStorage.getItem('finance_token')
         return !!token
+    }
+
+    getCurrentUser() {
+        const userStr = localStorage.getItem('finance_user')
+        return userStr ? JSON.parse(userStr) : null
+    }
+
+    getToken() {
+        return localStorage.getItem('finance_token')
     }
 }
 
