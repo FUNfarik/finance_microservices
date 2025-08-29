@@ -2,7 +2,9 @@ import { portfolioApi } from './api.js'
 
 class PortfolioService {
     getUserId() {
-        return parseInt(localStorage.getItem('user_id')) || 1  // Use integer 1 instead of "demo-user"
+        // Always parse back to number, fallback to 1
+        const raw = localStorage.getItem('user_id')
+        return raw ? parseInt(raw, 10) : 1
     }
 
     async getPortfolio() {
@@ -12,12 +14,24 @@ class PortfolioService {
 
             const response = await portfolioApi.get(`/portfolio/${userId}`)
             console.log('Portfolio API response:', response.data)
-            return response.data
+
+            // unwrap { status, message, data }
+            const body = response.data
+            const payload = body?.data ?? body
+
+            // normalize shape
+            return {
+                holdings: Array.isArray(payload.holdings) ? payload.holdings : [],
+                total_value: payload.total_value ?? 0,
+                cash: payload.cash ?? 0,
+                total_gain_loss: payload.total_gain_loss ?? 0,
+                total_gain_loss_percent: payload.total_gain_loss_percent ?? 0
+            }
         } catch (error) {
             console.error('Failed to fetch portfolio:', error)
 
-            // If user doesn't exist (404), return default empty portfolio
             if (error.response?.status === 404) {
+                // New user – return empty portfolio
                 return {
                     holdings: [],
                     total_value: 0,
@@ -31,15 +45,10 @@ class PortfolioService {
     }
 
     async getPortfolioValue() {
-        try {
-            const portfolio = await this.getPortfolio()
-            return {
-                total_value: portfolio.total_value || 0,
-                cash: portfolio.cash || 0
-            }
-        } catch (error) {
-            console.error('Failed to get portfolio value:', error)
-            throw error
+        const portfolio = await this.getPortfolio()
+        return {
+            total_value: portfolio.total_value ?? 0,
+            cash: portfolio.cash ?? 0
         }
     }
 
@@ -51,7 +60,7 @@ class PortfolioService {
             const response = await portfolioApi.post('/buy', {
                 user_id: userId,
                 symbol: symbol.toUpperCase(),
-                shares: parseInt(shares)
+                shares: parseInt(shares, 10)
             })
 
             console.log('Buy response:', response.data)
@@ -70,7 +79,7 @@ class PortfolioService {
             const response = await portfolioApi.post('/sell', {
                 user_id: userId,
                 symbol: symbol.toUpperCase(),
-                shares: parseInt(shares)
+                shares: parseInt(shares, 10)
             })
 
             console.log('Sell response:', response.data)
@@ -85,7 +94,8 @@ class PortfolioService {
         try {
             const userId = this.getUserId()
             const response = await portfolioApi.get(`/transactions/${userId}`)
-            return response.data
+            // unwrap here too if backend returns {status,message,data}
+            return response.data?.data ?? response.data
         } catch (error) {
             console.error('Failed to get transactions history:', error)
             throw error
@@ -104,7 +114,7 @@ class PortfolioService {
 
     // Set user ID (for when user logs in)
     setUserId(userId) {
-        localStorage.setItem('user_id', userId)
+        localStorage.setItem('user_id', String(userId))
     }
 
     // Clear user data (for logout)

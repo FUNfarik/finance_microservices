@@ -4,6 +4,7 @@ go 1.24.5
 
 require (
 	github.com/FUNfarik/finance_microservices/proto/go v0.0.0-00010101000000-000000000000
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/lib/pq v1.10.9
 	google.golang.org/grpc v1.75.0
 )

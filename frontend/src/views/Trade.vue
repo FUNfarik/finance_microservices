@@ -1,3 +1,460 @@
+<template>
+  <div class="trade-page">
+    <!-- Trade Header -->
+    <div class="trade-header">
+      <div class="header-content">
+        <h1>Trade Stocks</h1>
+        <p class="welcome-text">Buy and sell stocks with real-time market data</p>
+      </div>
+      <div class="header-actions">
+        <router-link to="/dashboard" class="nav-button">
+          ← Back to Dashboard
+        </router-link>
+      </div>
+    </div>
+
+    <!-- Portfolio Summary -->
+    <div class="stats-grid cols-2">
+      <div class="stat-card primary">
+        <div class="stat-icon">💵</div>
+        <div class="stat-content">
+          <h3>Available Cash</h3>
+          <p class="big-number">${{ formatCurrency(portfolio.cash) }}</p>
+          <span class="subtext">Ready to invest</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-content">
+          <h3>Holdings</h3>
+          <p class="big-number">{{ portfolio.holdings?.length || 0 }}</p>
+          <span class="subtext">Unique positions</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stock Lookup & Trading Section -->
+    <div class="trading-section">
+      <div class="section-header">
+        <h2>Stock Lookup & Trading</h2>
+      </div>
+
+      <!-- Stock Search -->
+      <div class="search-container">
+        <div class="search-box">
+          <input
+              v-model="stockSymbol"
+              type="text"
+              placeholder="Enter stock symbol (e.g., AAPL, MSFT, GOOGL)"
+              @input="onSymbolChange"
+              @keyup.enter="lookupStock"
+              class="search-input"
+          />
+          <button @click="lookupStock" :disabled="!stockSymbol || loading" class="search-btn">
+            {{ loading ? 'Loading...' : 'Get Quote' }}
+          </button>
+        </div>
+
+        <!-- Error message -->
+        <div v-if="error" class="error-message">
+          {{ error }}
+        </div>
+      </div>
+
+      <!-- Stock Information & Trading Form (Combined) -->
+      <div v-if="stockData" class="stock-trading-card">
+        <!-- Stock Info Header -->
+        <div class="stock-info-header">
+          <div class="stock-details">
+            <div class="stock-symbol">{{ stockData.symbol }}</div>
+            <div class="stock-name">{{ stockData.name }}</div>
+            <div class="stock-price-info">
+              <span class="current-price">${{ stockData.price.toFixed(2) }}</span>
+              <span class="price-change" :class="changeClass">
+                {{ stockData.changePercent > 0 ? '+' : '' }}{{ stockData.changePercent.toFixed(2) }}%
+              </span>
+            </div>
+          </div>
+
+          <!-- Current Holdings (if any) -->
+          <div v-if="currentShares > 0" class="current-holdings">
+            <div class="holdings-badge">
+              <span class="holdings-text">You own</span>
+              <span class="holdings-count">{{ currentShares }}</span>
+              <span class="holdings-text">shares</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trading Form (Integrated) -->
+        <div class="trading-form">
+          <div class="form-header">
+            <h3>Place Order</h3>
+          </div>
+
+          <!-- Trade Type Selection -->
+          <div class="trade-type-selector">
+            <label class="trade-type-option">
+              <input type="radio" v-model="tradeType" value="buy" />
+              <span class="option-button buy-option">
+                <span class="option-text">Buy</span>
+              </span>
+            </label>
+            <label class="trade-type-option">
+              <input type="radio" v-model="tradeType" value="sell" />
+              <span class="option-button sell-option">
+                <span class="option-text">Sell</span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Quantity Controls -->
+          <div class="quantity-section">
+            <div class="quantity-controls">
+              <button @click="decreaseShares" class="qty-btn" :disabled="shares <= 1">−</button>
+              <input
+                  v-model.number="shares"
+                  type="number"
+                  min="1"
+                  :max="tradeType === 'sell' ? currentShares : 9999"
+                  class="qty-input"
+              />
+              <button @click="increaseShares" class="qty-btn">+</button>
+            </div>
+
+            <!-- Quick Quantity Buttons -->
+            <div class="quick-quantities">
+              <template v-if="tradeType === 'sell' && currentShares > 0">
+                <button @click="shares = Math.max(1, Math.floor(currentShares / 4))" class="quick-btn">25%</button>
+                <button @click="shares = Math.max(1, Math.floor(currentShares / 2))" class="quick-btn">50%</button>
+                <button @click="shares = currentShares" class="quick-btn">All</button>
+              </template>
+              <template v-if="tradeType === 'buy'">
+                <button @click="setMaxBuyShares" class="quick-btn">Max</button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Order Summary -->
+          <div v-if="shares > 0" class="order-preview">
+            <div class="preview-header">
+              <h4>Order Preview</h4>
+            </div>
+
+            <div class="preview-details">
+              <div class="preview-row">
+                <span class="label">Action:</span>
+                <span class="value">
+                  <strong>{{ tradeType.toUpperCase() }} {{ shares }} shares</strong>
+                </span>
+              </div>
+
+              <div class="preview-row">
+                <span class="label">Price per share:</span>
+                <span class="value">${{ stockData.price.toFixed(2) }}</span>
+              </div>
+
+              <div class="preview-row total">
+                <span class="label">Total {{ tradeType === 'buy' ? 'Cost' : 'Proceeds' }}:</span>
+                <span class="value total-amount">${{ totalAmount.toFixed(2) }}</span>
+              </div>
+            </div>
+
+            <!-- Validation Messages -->
+            <div class="validation-section">
+              <!-- Cash validation for buying -->
+              <div v-if="tradeType === 'buy'" class="validation-info">
+                <div class="validation-row">
+                  <span>Available Cash: ${{ formatCurrency(portfolio.cash) }}</span>
+                </div>
+                <div v-if="totalAmount > portfolio.cash" class="validation-error">
+                  ❌ Insufficient funds (need ${{ formatCurrency(totalAmount - portfolio.cash) }} more)
+                </div>
+              </div>
+
+              <!-- Holdings validation for selling -->
+              <div v-if="tradeType === 'sell'" class="validation-info">
+                <div class="validation-row">
+                  <span>Current Holdings: {{ currentShares }} shares</span>
+                </div>
+                <div v-if="shares > currentShares" class="validation-error">
+                  ❌ Insufficient shares (you only own {{ currentShares }} shares)
+                </div>
+              </div>
+            </div>
+
+            <!-- Execute Trade Button -->
+            <div class="trade-execution">
+              <button
+                  @click="executeTrade"
+                  :disabled="!canTrade || executing"
+                  :class="['execute-btn', tradeType === 'buy' ? 'buy-btn' : 'sell-btn']"
+              >
+                <span v-if="executing" class="spinner">⏳</span>
+                {{ executing ? 'Processing...' : `${tradeType.toUpperCase()} ${shares} Shares` }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div v-if="successMessage" class="success-modal" @click="clearMessage">
+      <div class="modal-content" @click.stop>
+        <div class="success-header">
+          <div class="success-icon">✓</div>
+          <h3>Trade Executed Successfully!</h3>
+        </div>
+        <div class="success-body">
+          <p>{{ successMessage }}</p>
+        </div>
+        <div class="success-actions">
+          <button @click="clearMessage" class="continue-btn">Continue Trading</button>
+          <router-link to="/dashboard" class="dashboard-btn">View Dashboard</router-link>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Holdings -->
+    <div v-if="portfolio.holdings?.length > 0" class="holdings-section">
+      <div class="section-header">
+        <h2>Your Current Holdings</h2>
+        <span class="holdings-count-text">{{ portfolio.holdings.length }} positions</span>
+      </div>
+
+      <div class="holdings-grid">
+        <div v-for="holding in portfolio.holdings" :key="holding.symbol" class="holding-card">
+          <div class="holding-header">
+            <span class="holding-symbol">{{ holding.symbol }}</span>
+            <span class="holding-shares">{{ holding.shares }} shares</span>
+          </div>
+
+          <div class="holding-details">
+            <div class="detail-row">
+              <span>Avg Price:</span>
+              <span>${{ formatCurrency(holding.avg_price) }}</span>
+            </div>
+            <div class="detail-row">
+              <span>Current:</span>
+              <span>${{ formatCurrency(holding.current_price || 0) }}</span>
+            </div>
+            <div class="detail-row">
+              <span>Market Value:</span>
+              <span>${{ formatCurrency(holding.market_value || 0) }}</span>
+            </div>
+            <div class="detail-row gain-loss-row">
+              <span>Gain/Loss:</span>
+              <span :class="['gain-loss', (holding.gain_loss || 0) >= 0 ? 'positive' : 'negative']">
+                {{ (holding.gain_loss || 0) >= 0 ? '+' : '' }}${{ formatCurrency(Math.abs(holding.gain_loss || 0)) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="holding-actions">
+            <button @click="quickTrade(holding.symbol, 'buy')" class="action-btn buy-more-btn">
+              Buy More
+            </button>
+            <button @click="quickTrade(holding.symbol, 'sell')" class="action-btn sell-btn">
+              Sell
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { useUserStore } from '../stores/user'
+import { marketApi } from '../services/api.js'
+
+export default {
+  name: 'Trade',
+  setup() {
+    const userStore = useUserStore()
+    return { userStore }
+  },
+
+  data() {
+    return {
+      // Stock lookup
+      stockSymbol: '',
+      stockData: null,
+      loading: false,
+      error: null,
+
+      // Trading form
+      tradeType: 'buy',
+      shares: 1,
+      executing: false,
+      successMessage: ''
+    }
+  },
+
+  computed: {
+    portfolio() { return this.userStore.portfolio },
+
+    // Calculate total cost/proceeds
+    totalAmount() {
+      if (!this.stockData || !this.shares) return 0
+      return this.stockData.price * this.shares
+    },
+
+    // Check if stock price went up or down
+    changeClass() {
+      if (!this.stockData) return ''
+      return this.stockData.changePercent >= 0 ? 'positive' : 'negative'
+    },
+
+    // Current shares of this stock
+    currentShares() {
+      if (!this.stockData?.symbol || !this.portfolio.holdings) return 0
+      const holding = this.portfolio.holdings.find(h => h.symbol === this.stockData.symbol)
+      return holding ? holding.shares : 0
+    },
+
+    // Can the user execute this trade?
+    canTrade() {
+      if (!this.stockData || !this.shares || this.shares <= 0) return false
+
+      if (this.tradeType === 'buy') {
+        return this.totalAmount <= this.portfolio.cash
+      } else {
+        return this.shares <= this.currentShares
+      }
+    }
+  },
+
+  async mounted() {
+    // Load user data and check for symbol in query params
+    await this.userStore.loadPortfolio()
+
+    if (this.$route.query.symbol) {
+      this.stockSymbol = this.$route.query.symbol.toUpperCase()
+      await this.lookupStock()
+    }
+  },
+
+  methods: {
+    // Clear previous data when symbol changes
+    onSymbolChange() {
+      this.stockData = null
+      this.error = null
+      this.successMessage = ''
+      this.shares = 1
+    },
+
+    // Look up stock information
+    async lookupStock() {
+      if (!this.stockSymbol) return
+
+      this.loading = true
+      this.error = null
+
+      try {
+        const response = await marketApi.get(`/stock/${this.stockSymbol.toUpperCase()}`)
+        const data = response.data
+
+        this.stockData = {
+          symbol: data.symbol,
+          name: data.name,
+          price: data.price,
+          changePercent: data.change_percent
+        }
+
+        // Update URL with symbol
+        this.$router.replace({
+          query: { ...this.$route.query, symbol: data.symbol }
+        })
+
+      } catch (err) {
+        console.error('Error fetching stock:', err)
+        this.error = err.response?.data?.error || err.message || 'Failed to fetch stock data'
+        this.stockData = null
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // Execute the trade using Pinia store
+    async executeTrade() {
+      if (!this.canTrade) return
+
+      this.executing = true
+      this.error = null
+
+      try {
+        const tradeData = {
+          symbol: this.stockData.symbol,
+          shares: this.shares,
+          price: this.stockData.price,
+          trade_type: this.tradeType
+        }
+
+        await this.userStore.executeTrade(tradeData)
+
+        this.successMessage = `Successfully ${this.tradeType === 'buy' ? 'bought' : 'sold'} ${this.shares} shares of ${this.stockData.symbol} at ${this.stockData.price.toFixed(2)} per share`
+
+        // Reset form
+        this.shares = 1
+
+      } catch (err) {
+        if (err.response?.status === 401) {
+          this.$router.push('/login')
+          return
+        }
+        this.error = err.message || 'Trade execution failed'
+      } finally {
+        this.executing = false
+      }
+    },
+
+    // Quick trade actions
+    quickTrade(symbol, action) {
+      this.stockSymbol = symbol
+      this.tradeType = action
+      this.lookupStock()
+    },
+
+    // Quantity control methods
+    increaseShares() {
+      if (this.tradeType === 'sell' && this.shares >= this.currentShares) {
+        return
+      }
+      this.shares += 1
+    },
+
+    decreaseShares() {
+      if (this.shares > 1) {
+        this.shares -= 1
+      }
+    },
+
+    // Set maximum buyable shares based on available cash
+    setMaxBuyShares() {
+      if (this.stockData && this.portfolio.cash > 0) {
+        const maxShares = Math.floor(this.portfolio.cash / this.stockData.price)
+        this.shares = Math.max(1, maxShares)
+      }
+    },
+
+    // Clear success message
+    clearMessage() {
+      this.successMessage = ''
+    },
+
+    formatCurrency(amount) {
+      return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount || 0)
+    }
+  }
+}
+</script>
+
 <style scoped>
 .trade-page {
   min-height: 100vh;
@@ -811,459 +1268,4 @@
     margin: 0 -5px;
   }
 }
-</style><template>
-  <div class="trade-page">
-    <!-- Trade Header -->
-    <div class="trade-header">
-      <div class="header-content">
-        <h1>Trade Stocks</h1>
-        <p class="welcome-text">Buy and sell stocks with real-time market data</p>
-      </div>
-      <div class="header-actions">
-        <router-link to="/dashboard" class="nav-button">
-          ← Back to Dashboard
-        </router-link>
-      </div>
-    </div>
-
-    <!-- Portfolio Summary -->
-    <div class="stats-grid cols-2">
-      <div class="stat-card primary">
-        <div class="stat-icon">💵</div>
-        <div class="stat-content">
-          <h3>Available Cash</h3>
-          <p class="big-number">${{ formatCurrency(portfolio.cash) }}</p>
-          <span class="subtext">Ready to invest</span>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-content">
-          <h3>Holdings</h3>
-          <p class="big-number">{{ portfolio.holdings?.length || 0 }}</p>
-          <span class="subtext">Unique positions</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stock Lookup & Trading Section -->
-    <div class="trading-section">
-      <div class="section-header">
-        <h2>Stock Lookup & Trading</h2>
-      </div>
-
-      <!-- Stock Search -->
-      <div class="search-container">
-        <div class="search-box">
-          <input
-              v-model="stockSymbol"
-              type="text"
-              placeholder="Enter stock symbol (e.g., AAPL, MSFT, GOOGL)"
-              @input="onSymbolChange"
-              @keyup.enter="lookupStock"
-              class="search-input"
-          />
-          <button @click="lookupStock" :disabled="!stockSymbol || loading" class="search-btn">
-            {{ loading ? 'Loading...' : 'Get Quote' }}
-          </button>
-        </div>
-
-        <!-- Error message -->
-        <div v-if="error" class="error-message">
-          {{ error }}
-        </div>
-      </div>
-
-      <!-- Stock Information & Trading Form (Combined) -->
-      <div v-if="stockData" class="stock-trading-card">
-        <!-- Stock Info Header -->
-        <div class="stock-info-header">
-          <div class="stock-details">
-            <div class="stock-symbol">{{ stockData.symbol }}</div>
-            <div class="stock-name">{{ stockData.name }}</div>
-            <div class="stock-price-info">
-              <span class="current-price">${{ stockData.price.toFixed(2) }}</span>
-              <span class="price-change" :class="changeClass">
-                {{ stockData.changePercent > 0 ? '+' : '' }}{{ stockData.changePercent.toFixed(2) }}%
-              </span>
-            </div>
-          </div>
-
-          <!-- Current Holdings (if any) -->
-          <div v-if="currentShares > 0" class="current-holdings">
-            <div class="holdings-badge">
-              <span class="holdings-text">You own</span>
-              <span class="holdings-count">{{ currentShares }}</span>
-              <span class="holdings-text">shares</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Trading Form (Integrated) -->
-        <div class="trading-form">
-          <div class="form-header">
-            <h3>Place Order</h3>
-          </div>
-
-          <!-- Trade Type Selection -->
-          <div class="trade-type-selector">
-            <label class="trade-type-option">
-              <input type="radio" v-model="tradeType" value="buy" />
-              <span class="option-button buy-option">
-                <span class="option-text">Buy</span>
-              </span>
-            </label>
-            <label class="trade-type-option">
-              <input type="radio" v-model="tradeType" value="sell" />
-              <span class="option-button sell-option">
-                <span class="option-text">Sell</span>
-              </span>
-            </label>
-          </div>
-
-          <!-- Quantity Controls -->
-          <div class="quantity-section">
-            <div class="quantity-controls">
-              <button @click="decreaseShares" class="qty-btn" :disabled="shares <= 1">−</button>
-              <input
-                  v-model.number="shares"
-                  type="number"
-                  min="1"
-                  :max="tradeType === 'sell' ? currentShares : 9999"
-                  class="qty-input"
-              />
-              <button @click="increaseShares" class="qty-btn">+</button>
-            </div>
-
-            <!-- Quick Quantity Buttons -->
-            <div class="quick-quantities">
-              <template v-if="tradeType === 'sell' && currentShares > 0">
-                <button @click="shares = Math.max(1, Math.floor(currentShares / 4))" class="quick-btn">25%</button>
-                <button @click="shares = Math.max(1, Math.floor(currentShares / 2))" class="quick-btn">50%</button>
-                <button @click="shares = currentShares" class="quick-btn">All</button>
-              </template>
-              <template v-if="tradeType === 'buy'">
-                <button @click="setMaxBuyShares" class="quick-btn">Max</button>
-              </template>
-            </div>
-          </div>
-
-          <!-- Order Summary -->
-          <div v-if="shares > 0" class="order-preview">
-            <div class="preview-header">
-              <h4>Order Preview</h4>
-            </div>
-
-            <div class="preview-details">
-              <div class="preview-row">
-                <span class="label">Action:</span>
-                <span class="value">
-                  <strong>{{ tradeType.toUpperCase() }} {{ shares }} shares</strong>
-                </span>
-              </div>
-
-              <div class="preview-row">
-                <span class="label">Price per share:</span>
-                <span class="value">${{ stockData.price.toFixed(2) }}</span>
-              </div>
-
-              <div class="preview-row total">
-                <span class="label">Total {{ tradeType === 'buy' ? 'Cost' : 'Proceeds' }}:</span>
-                <span class="value total-amount">${{ totalAmount.toFixed(2) }}</span>
-              </div>
-            </div>
-
-            <!-- Validation Messages -->
-            <div class="validation-section">
-              <!-- Cash validation for buying -->
-              <div v-if="tradeType === 'buy'" class="validation-info">
-                <div class="validation-row">
-                  <span>Available Cash: ${{ formatCurrency(portfolio.cash) }}</span>
-                </div>
-                <div v-if="totalAmount > portfolio.cash" class="validation-error">
-                  ❌ Insufficient funds (need ${{ formatCurrency(totalAmount - portfolio.cash) }} more)
-                </div>
-              </div>
-
-              <!-- Holdings validation for selling -->
-              <div v-if="tradeType === 'sell'" class="validation-info">
-                <div class="validation-row">
-                  <span>Current Holdings: {{ currentShares }} shares</span>
-                </div>
-                <div v-if="shares > currentShares" class="validation-error">
-                  ❌ Insufficient shares (you only own {{ currentShares }} shares)
-                </div>
-              </div>
-            </div>
-
-            <!-- Execute Trade Button -->
-            <div class="trade-execution">
-              <button
-                  @click="executeTrade"
-                  :disabled="!canTrade || executing"
-                  :class="['execute-btn', tradeType === 'buy' ? 'buy-btn' : 'sell-btn']"
-              >
-                <span v-if="executing" class="spinner">⏳</span>
-                {{ executing ? 'Processing...' : `${tradeType.toUpperCase()} ${shares} Shares` }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Success Modal -->
-    <div v-if="successMessage" class="success-modal" @click="clearMessage">
-      <div class="modal-content" @click.stop>
-        <div class="success-header">
-          <div class="success-icon">✓</div>
-          <h3>Trade Executed Successfully!</h3>
-        </div>
-        <div class="success-body">
-          <p>{{ successMessage }}</p>
-        </div>
-        <div class="success-actions">
-          <button @click="clearMessage" class="continue-btn">Continue Trading</button>
-          <router-link to="/dashboard" class="dashboard-btn">View Dashboard</router-link>
-        </div>
-      </div>
-    </div>
-
-    <!-- Current Holdings -->
-    <div v-if="portfolio.holdings?.length > 0" class="holdings-section">
-      <div class="section-header">
-        <h2>Your Current Holdings</h2>
-        <span class="holdings-count-text">{{ portfolio.holdings.length }} positions</span>
-      </div>
-
-      <div class="holdings-grid">
-        <div v-for="holding in portfolio.holdings" :key="holding.symbol" class="holding-card">
-          <div class="holding-header">
-            <span class="holding-symbol">{{ holding.symbol }}</span>
-            <span class="holding-shares">{{ holding.shares }} shares</span>
-          </div>
-
-          <div class="holding-details">
-            <div class="detail-row">
-              <span>Avg Price:</span>
-              <span>${{ formatCurrency(holding.avg_price) }}</span>
-            </div>
-            <div class="detail-row">
-              <span>Current:</span>
-              <span>${{ formatCurrency(holding.current_price || 0) }}</span>
-            </div>
-            <div class="detail-row">
-              <span>Market Value:</span>
-              <span>${{ formatCurrency(holding.market_value || 0) }}</span>
-            </div>
-            <div class="detail-row gain-loss-row">
-              <span>Gain/Loss:</span>
-              <span :class="['gain-loss', (holding.gain_loss || 0) >= 0 ? 'positive' : 'negative']">
-                {{ (holding.gain_loss || 0) >= 0 ? '+' : '' }}${{ formatCurrency(Math.abs(holding.gain_loss || 0)) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="holding-actions">
-            <button @click="quickTrade(holding.symbol, 'buy')" class="action-btn buy-more-btn">
-              Buy More
-            </button>
-            <button @click="quickTrade(holding.symbol, 'sell')" class="action-btn sell-btn">
-              Sell
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script>
-import { useUserStore } from '../stores/user'
-
-export default {
-  name: 'Trade',
-  setup() {
-    const userStore = useUserStore()
-    return { userStore }
-  },
-
-  data() {
-    return {
-      // Stock lookup
-      stockSymbol: '',
-      stockData: null,
-      loading: false,
-      error: null,
-
-      // Trading form
-      tradeType: 'buy',
-      shares: 1,
-      executing: false,
-      successMessage: ''
-    }
-  },
-
-  computed: {
-    portfolio() { return this.userStore.portfolio },
-
-    // Calculate total cost/proceeds
-    totalAmount() {
-      if (!this.stockData || !this.shares) return 0
-      return this.stockData.price * this.shares
-    },
-
-    // Check if stock price went up or down
-    changeClass() {
-      if (!this.stockData) return ''
-      return this.stockData.changePercent >= 0 ? 'positive' : 'negative'
-    },
-
-    // Current shares of this stock
-    currentShares() {
-      if (!this.stockData?.symbol || !this.portfolio.holdings) return 0
-      const holding = this.portfolio.holdings.find(h => h.symbol === this.stockData.symbol)
-      return holding ? holding.shares : 0
-    },
-
-    // Can the user execute this trade?
-    canTrade() {
-      if (!this.stockData || !this.shares || this.shares <= 0) return false
-
-      if (this.tradeType === 'buy') {
-        return this.totalAmount <= this.portfolio.cash
-      } else {
-        return this.shares <= this.currentShares
-      }
-    }
-  },
-
-  async mounted() {
-    // Load user data and check for symbol in query params
-    await this.userStore.loadPortfolio()
-
-    if (this.$route.query.symbol) {
-      this.stockSymbol = this.$route.query.symbol.toUpperCase()
-      await this.lookupStock()
-    }
-  },
-
-  methods: {
-    // Clear previous data when symbol changes
-    onSymbolChange() {
-      this.stockData = null
-      this.error = null
-      this.successMessage = ''
-      this.shares = 1
-    },
-
-    // Look up stock information
-    async lookupStock() {
-      if (!this.stockSymbol) return
-
-      this.loading = true
-      this.error = null
-
-      try {
-        const response = await fetch(`http://localhost:8002/stock/${this.stockSymbol.toUpperCase()}`)
-
-        if (!response.ok) {
-          throw new Error(`Stock not found or API error: ${response.status}`)
-        }
-
-        const data = await response.json()
-
-        this.stockData = {
-          symbol: data.symbol,
-          name: data.name,
-          price: data.price,
-          changePercent: data.change_percent
-        }
-
-        // Update URL with symbol
-        this.$router.replace({
-          query: { ...this.$route.query, symbol: data.symbol }
-        })
-
-      } catch (err) {
-        console.error('Error fetching stock:', err)
-        this.error = err.message || 'Failed to fetch stock data'
-        this.stockData = null
-      } finally {
-        this.loading = false
-      }
-    },
-
-    // Execute the trade using Pinia store
-    async executeTrade() {
-      if (!this.canTrade) return
-
-      this.executing = true
-      this.error = null
-
-      try {
-        const tradeData = {
-          symbol: this.stockData.symbol,
-          shares: this.shares,
-          price: this.stockData.price,
-          trade_type: this.tradeType
-        }
-
-        await this.userStore.executeTrade(tradeData)
-
-        this.successMessage = `Successfully ${this.tradeType === 'buy' ? 'bought' : 'sold'} ${this.shares} shares of ${this.stockData.symbol} at ${this.stockData.price.toFixed(2)} per share`
-
-        // Reset form
-        this.shares = 1
-
-      } catch (err) {
-        this.error = err.message || 'Trade execution failed'
-      } finally {
-        this.executing = false
-      }
-    },
-
-    // Quick trade actions
-    quickTrade(symbol, action) {
-      this.stockSymbol = symbol
-      this.tradeType = action
-      this.lookupStock()
-    },
-
-    // Quantity control methods
-    increaseShares() {
-      if (this.tradeType === 'sell' && this.shares >= this.currentShares) {
-        return
-      }
-      this.shares += 1
-    },
-
-    decreaseShares() {
-      if (this.shares > 1) {
-        this.shares -= 1
-      }
-    },
-
-    // Set maximum buyable shares based on available cash
-    setMaxBuyShares() {
-      if (this.stockData && this.portfolio.cash > 0) {
-        const maxShares = Math.floor(this.portfolio.cash / this.stockData.price)
-        this.shares = Math.max(1, maxShares)
-      }
-    },
-
-    // Clear success message
-    clearMessage() {
-      this.successMessage = ''
-    },
-
-    formatCurrency(amount) {
-      return new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(amount || 0)
-    }
-  }
-}
-</script>
+</style>

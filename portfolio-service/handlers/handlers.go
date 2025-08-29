@@ -7,7 +7,10 @@ import (
 	"net/http"
 	"portfolio-service/models"
 	"portfolio-service/services"
+	"strconv"
 	"strings"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type Handlers struct {
@@ -18,6 +21,47 @@ type Handlers struct {
 func NewHandlers(portfolioService *services.PortfolioService) *Handlers {
 	return &Handlers{
 		portfolioService: portfolioService,
+	}
+}
+
+// extractUserIDFromToken extracts user ID from JWT token
+func (h *Handlers) extractUserIDFromToken(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", fmt.Errorf("authorization header missing")
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader {
+		return "", fmt.Errorf("bearer token missing")
+	}
+
+	// Parse token without verification (since we trust the auth service)
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return "", fmt.Errorf("failed to parse token: %v", err)
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", fmt.Errorf("invalid token claims")
+	}
+
+	userID, ok := claims["user_id"]
+	if !ok {
+		return "", fmt.Errorf("user_id not found in token")
+	}
+
+	// Convert to string
+	switch v := userID.(type) {
+	case float64:
+		return strconv.Itoa(int(v)), nil
+	case int:
+		return strconv.Itoa(v), nil
+	case string:
+		return v, nil
+	default:
+		return "", fmt.Errorf("invalid user_id type in token")
 	}
 }
 
@@ -40,16 +84,14 @@ func (h *Handlers) HealthHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetPortfolioHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Extract user_id from URL path as STRING (not int)
-	path := strings.TrimPrefix(r.URL.Path, "/portfolio/")
-	userID := strings.Trim(path, "/")
-
-	if userID == "" {
+	// Extract user_id from JWT token
+	userID, err := h.extractUserIDFromToken(r)
+	if err != nil {
 		response := models.APIResponse{
 			Status: "error",
-			Error:  "User ID is required",
+			Error:  fmt.Sprintf("Authentication failed: %v", err),
 		}
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -175,16 +217,14 @@ func (h *Handlers) SellStockHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetTransactionsHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
 
-    // Extract user_id from URL path as STRING (not int)
-    path := strings.TrimPrefix(r.URL.Path, "/transactions/")
-    userID := strings.Trim(path, "/")
-
-    if userID == "" {
+    // Extract user_id from JWT token
+    userID, err := h.extractUserIDFromToken(r)
+    if err != nil {
         response := models.APIResponse{
             Status: "error",
-            Error:  "User ID is required",
+            Error:  fmt.Sprintf("Authentication failed: %v", err),
         }
-        w.WriteHeader(http.StatusBadRequest)
+        w.WriteHeader(http.StatusUnauthorized)
         json.NewEncoder(w).Encode(response)
         return
     }

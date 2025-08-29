@@ -190,3 +190,47 @@ func (db *DB) UpsertHolding(userID string, symbol string, shares int, avgPrice f
 func (db *DB) GetUserTransactions(userID string) ([]models.Transaction, error) {
 	return db.GetUserTransaction(userID)
 }
+
+// GetStockPrices retrieves current prices from the database for given symbols
+func (db *DB) GetStockPrices(symbols []string) (map[string]float64, error) {
+	if len(symbols) == 0 {
+		return make(map[string]float64), nil
+	}
+
+	// Create placeholders for the IN clause
+	placeholders := make([]interface{}, len(symbols))
+	for i, symbol := range symbols {
+		placeholders[i] = symbol
+	}
+
+	// Build the query with proper placeholders
+	query := `SELECT symbol, price FROM stock_prices WHERE symbol IN (`
+	args := make([]interface{}, len(symbols))
+	for i, symbol := range symbols {
+		if i > 0 {
+			query += ", "
+		}
+		query += fmt.Sprintf("$%d", i+1)
+		args[i] = symbol
+	}
+	query += ")"
+
+	rows, err := db.conn.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query stock prices: %w", err)
+	}
+	defer rows.Close()
+
+	prices := make(map[string]float64)
+	for rows.Next() {
+		var symbol string
+		var price float64
+		err := rows.Scan(&symbol, &price)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan stock price: %w", err)
+		}
+		prices[symbol] = price
+	}
+
+	return prices, nil
+}
