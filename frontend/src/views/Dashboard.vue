@@ -144,17 +144,14 @@
         <p>Buy and sell stocks</p>
       </router-link>
 
-      <div class="action-card history" @click="showTransactionHistory = true">
-        <div class="action-icon">📋</div>
-        <h3>History</h3>
-        <p>View past transactions</p>
+      <div class="action-card history">
+        <router-link to="/transactions" class="action-card transactions">
+          <div class="action-icon">📋</div>
+          <h3>History</h3>
+          <p>View past transactions</p>
+        </router-link>
       </div>
 
-      <div class="action-card refresh" @click="refreshData">
-        <div class="action-icon">🔄</div>
-        <h3>Refresh</h3>
-        <p>Update all data</p>
-      </div>
     </div>
   </div>
 </template>
@@ -173,7 +170,6 @@ export default {
     return {
       isRefreshing: false,
       updatingPrices: false,
-      showTransactionHistory: false,
       // Add these back if needed
       testing: false,
       serviceStatus: []
@@ -187,12 +183,12 @@ export default {
     lastUpdate() { return this.userStore.lastUpdate },
     totalNetWorth() { return this.userStore.totalNetWorth }
   },
-
+// for test demo user
   async mounted() {
-    // Initialize demo user for development
-    this.userStore.initDemoUser()
+    if (import.meta.env.VITE_DEMO === 'false') {
+      this.userStore.initDemoUser()
+    }
 
-    // Load portfolio data on mount
     await this.userStore.loadPortfolio()
   },
 
@@ -268,6 +264,10 @@ export default {
         path: '/trade',
         query: symbol ? { symbol } : {}
       })
+    },
+
+    goToTransactions() {
+      this.$router.push('/transactions')
     },
 
     formatCurrency(amount) {
@@ -808,8 +808,20 @@ export default {
   background: #007bff;
 }
 
+.action-card.history {
+  background: white;
+  position: relative;
+}
+
 .action-card.history::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
   background: #6c757d;
+  border-radius: 15px 15px 0 0;
 }
 
 .action-card.refresh::before {

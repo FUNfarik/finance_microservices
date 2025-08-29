@@ -5,7 +5,7 @@ import { marketService } from '../services/marketService.js'
 
 // Types
 interface User {
-    id: string
+    id: number        // backend returns integer ID
     email: string
     name?: string
 }
@@ -122,8 +122,9 @@ export const useUserStore = defineStore('user', {
                 this.user = response.user
                 this.isAuthenticated = true
 
-                // Set user ID in portfolio service
                 if (response.user?.id) {
+                    // persist user_id for portfolio service
+                    localStorage.setItem('user_id', String(response.user.id))
                     portfolioService.setUserId(response.user.id)
                 }
 
@@ -163,17 +164,16 @@ export const useUserStore = defineStore('user', {
 
                 if (portfolio) {
                     this.portfolio = {
-                        holdings: portfolio.holdings || [],
-                        total_value: portfolio.total_value || 0,
-                        cash: portfolio.cash || 10000.00,
-                        total_gain_loss: portfolio.total_gain_loss || 0,
-                        total_gain_loss_percent: portfolio.total_gain_loss_percent || 0
+                        holdings: portfolio.holdings ?? [],
+                        total_value: portfolio.total_value ?? 0,
+                        cash: portfolio.cash ?? 0,
+                        total_gain_loss: portfolio.total_gain_loss ?? 0,
+                        total_gain_loss_percent: portfolio.total_gain_loss_percent ?? 0
                     }
                 }
 
                 this.lastUpdate = new Date()
 
-                // Update current prices for holdings
                 if (this.portfolio.holdings.length > 0) {
                     await this.updateHoldingsPrices()
                 }
@@ -186,7 +186,6 @@ export const useUserStore = defineStore('user', {
                 if (error.code === 'ERR_NETWORK') {
                     this.errors.portfolio = 'Portfolio service not running on port 8003'
                 } else if (error.response?.status === 404) {
-                    // New user case - this is normal
                     console.log('New user - using default portfolio')
                     this.portfolio = {
                         holdings: [],
@@ -275,7 +274,6 @@ export const useUserStore = defineStore('user', {
                 this.errors.trade = null
 
                 const { symbol, shares, price, trade_type } = tradeData
-
                 console.log('Executing trade:', tradeData)
 
                 let result
@@ -287,10 +285,8 @@ export const useUserStore = defineStore('user', {
 
                 console.log('Trade result:', result)
 
-                // Update local portfolio optimistically
                 this.updatePortfolioAfterTrade(tradeData)
 
-                // Refresh portfolio data from server
                 setTimeout(() => {
                     this.loadPortfolio().catch(err =>
                         console.log('Background refresh failed:', err)
@@ -369,7 +365,6 @@ export const useUserStore = defineStore('user', {
             await this.loadPortfolio()
         },
 
-        // Initialize with demo user for development
         initDemoUser(): void {
             if (!localStorage.getItem('user_id')) {
                 localStorage.setItem('user_id', 'demo-user')

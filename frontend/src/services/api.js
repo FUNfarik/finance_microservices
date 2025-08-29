@@ -41,6 +41,8 @@ const setAuthToken = (token) => {
     }
 }
 
+
+
 const loadStoredToken = () => {
     const token = localStorage.getItem('finance_token')
     if (token) {

@@ -53,7 +53,13 @@ func (s *PortfolioService) GetPortfolio(ctx context.Context, userID string) (*mo
 	// Get current prices from Market Data Service via gRPC
 	prices, err := s.marketClient.GetMultipleStockPrices(ctx, symbols)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get stock prices: %w", err)
+		fmt.Printf("Failed to get prices from market service: %v, falling back to database prices\n", err)
+		// Fall back to database prices
+		prices, err = s.db.GetStockPrices(symbols)
+		if err != nil {
+			fmt.Printf("Failed to get prices from database: %v, using average prices\n", err)
+			prices = make(map[string]float64) // Empty map will cause fallback to avg prices
+		}
 	}
 
 	// Calculate portfolio values

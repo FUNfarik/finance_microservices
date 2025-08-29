@@ -3,6 +3,7 @@ package grpcclient
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -17,14 +18,20 @@ type MarketClient struct {
 
 // Connect establishes gRPC connection to Market Data Service
 func Connect() (*MarketClient, error) {
-	conn, err := grpc.NewClient("localhost:8005", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// Get gRPC service address from environment variable
+	grpcAddr := os.Getenv("MARKET_GRPC_URL")
+	if grpcAddr == "" {
+		grpcAddr = "localhost:8005" // fallback for local development
+	}
+	
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to market data service: %w", err)
 	}
 
 	client := pb.NewMarketDataServiceClient(conn)
 
-	fmt.Println("Connected to Market Data Service via gRPC on port 8005")
+	fmt.Printf("Connected to Market Data Service via gRPC at %s\n", grpcAddr)
 	return &MarketClient{
 		conn:   conn,
 		client: client,

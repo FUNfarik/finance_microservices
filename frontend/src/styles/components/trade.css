@@ -1,9 +1,8 @@
 /* Trade Page Styles */
 .trade-page {
-    max-width: var(--breakpoint-xxl);
-    margin: 0 auto;
-    padding: var(--spacing-lg);
-    background: var(--bg-secondary); /* instead of gradient */
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
 }
 
 .trade-page h1 {
@@ -24,15 +23,14 @@
 }
 
 /* Section Containers */
-.trade-page section,
 .search-section,
 .popular-section,
 .portfolio-summary,
 .holdings-section {
-    background: var(--bg-primary); /* clean solid background */
+    background: var(--bg-primary);
+    padding: var(--spacing-xxl);
     border-radius: var(--border-radius-xl);
     box-shadow: var(--shadow-lg);
-    padding: var(--spacing-xl);
     margin-bottom: var(--spacing-xl);
     border: 1px solid var(--gray-200);
 }
@@ -95,7 +93,7 @@
 
 /* Stock Card */
 .stock-card {
-    background: var(--bg-primary); /* ✅ no gradient */
+    background: linear-gradient(135deg, var(--gray-100), #ffffff);
     border: 2px solid var(--gray-200);
     border-radius: var(--border-radius-xl);
     padding: var(--spacing-lg);
@@ -285,13 +283,10 @@
 }
 
 /* Portfolio Summary */
-.summary-card {
-    background: var(--bg-primary); /* ✅ solid */
-    padding: var(--spacing-xl);
-    border-radius: var(--border-radius-xl);
-    text-align: center;
-    border: 2px solid var(--gray-200);
-    transition: all var(--transition-normal);
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
 }
 
 .summary-card {
@@ -346,7 +341,7 @@
 }
 
 .holding-card {
-    background: var(--bg-primary); /* ✅ clean solid background */
+    background: linear-gradient(135deg, #fff3cd, #ffeaa7);
     border: 2px solid var(--warning-color);
     border-radius: var(--border-radius-xl);
     padding: var(--spacing-lg);
@@ -520,5 +515,10 @@
     .portfolio-summary,
     .holdings-section {
         padding: var(--spacing-lg);
+    }
+    /* Remove the parent frame on the Trade page */
+    :global(main.main-content.with-nav) {
+        background: transparent !important;
+        padding: 0 !important;
     }
 }

@@ -39,15 +39,18 @@ CREATE TABLE stock_prices (
 );
 
 
+-- Password is 'password123' 
 INSERT INTO users (username, email, password_hash, cash) VALUES
-    ('testuser', 'test@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMye1VQ2a/tT/O7xVL3OoYhZLx6BZ7nJxO2', 500.00);
+    ('testuser', 'test@example.com', '$2a$10$.CWcv9bgp6VWZcAiHu24peF2rJTStF8UFWeRyUhK2FWx5sDSMs5C6', 500.00);
 
 
 INSERT INTO stock_prices (symbol, name, price, change_percent) VALUES
-    ('AAPL', 'Apple Inc.', 175.25, 1.2),
-    ('GOOGL', 'Alphabet Inc.', 2750.80, -0.5),
+    ('AAPL', 'Apple Inc.', 227.76, 1.27),
+    ('GOOGL', 'Alphabet Inc.', 206.09, 3.17),
     ('MSFT', 'Microsoft Corporation', 338.50, 0.8),
-    ('SPY', 'SPDR S&P 500 ETF', 445.60, 0.3);
+    ('SPY', 'SPDR S&P 500 ETF', 645.31, 1.54),
+    ('TSLA', 'Tesla Inc.', 248.50, -2.1),
+    ('NVDA', 'NVIDIA Corporation', 875.30, 4.2);
 
 -- 3. Add transaction history (showing how testuser spent $7,500 from original $10,000)
 INSERT INTO transactions (user_id, symbol, shares, price, transaction_type, total_amount, created_at) VALUES

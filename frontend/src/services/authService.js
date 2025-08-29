@@ -19,8 +19,6 @@ class AuthService {
                 password: userData.password
             })
 
-            // Just return success, don't auto-login
-            // Let the user manually sign in after registration
             return response.data
         } catch (error) {
             console.error('Registration failed:', error)
@@ -78,7 +76,22 @@ class AuthService {
 
     isAuthenticated() {
         const token = localStorage.getItem('finance_token')
-        return !!token
+        if (!token) return false
+
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]))
+            const currentTime = Date.now() / 1000
+
+            if (payload.exp < currentTime) {
+                this.logout() // Clear expired token
+                return false
+            }
+
+            return true
+        } catch (error) {
+            this.logout() // Clear invalid token
+            return false
+        }
     }
 
     getCurrentUser() {

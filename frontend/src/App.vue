@@ -121,34 +121,17 @@ export default {
   position: relative;
 }
 
-/* When navigation is present */
-.main-content.with-nav {
-  min-height: calc(100vh - 80px);
-  padding-top: 0;
-}
-
 /* Full screen for login page */
 .main-content.full-screen {
   min-height: 100vh;
   padding: 0;
 }
 
-/* Special handling for dashboard route */
-.main-content.with-nav:has(.dashboard) {
-  padding: 0;
-  background: transparent;
-}
-
-/* Special handling for trade route */
-.main-content.with-nav:has(.trade-page) {
-  padding: 0;
-  background: transparent;
-}
-
-/* Default background for non-dashboard pages with navigation */
+/* Default styles when navigation is present - no background, no padding */
 .main-content.with-nav {
-  background: #f8f9fa;
-  padding: 2rem;
+  min-height: calc(100vh - 80px);
+  background: transparent;
+  padding: 0;
 }
 
 /* Override for dashboard specifically */
@@ -183,17 +166,12 @@ export default {
 
   .main-content.with-nav {
     min-height: calc(100vh - 120px);
-    padding: 1rem;
   }
 }
 
 @media (max-width: 480px) {
   .nav-container {
     padding: 0 0.5rem;
-  }
-
-  .main-content.with-nav {
-    padding: 0.5rem;
   }
 }
 

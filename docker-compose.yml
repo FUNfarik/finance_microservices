@@ -56,6 +56,7 @@ services:
             DB_NAME: ${POSTGRES_DB}
             AUTH_SERVICE_URL: http://auth:8001
             MARKET_SERVICE_URL: http://make-data-service:8002
+            MARKET_GRPC_URL: make-data-service:8005
             ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
         depends_on:
             postgres:

@@ -170,10 +170,10 @@ func main() {
 	fmt.Println("Auth Service is running...")
 
 	// Protected profile endpoint
-	http.HandleFunc("/profile", jwtMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/profile", enableCORS(jwtMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"message": "Protected endpoint", "status": "success", "note": "You are authenticated!"}`))
-	}))
+	})))
 
 	// Login endpoint - Updated to handle JSON
 	http.HandleFunc("/login", enableCORS(func(w http.ResponseWriter, r *http.Request) {

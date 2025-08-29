@@ -103,10 +103,10 @@ func main() {
 		fmt.Println("Server running on http://localhost:8003")
 		fmt.Println("Available endpoints:")
 		fmt.Println("- GET  /health")
-		fmt.Println("- GET  /portfolio/{user_id}")
+		fmt.Println("- GET  /portfolio/ (requires JWT token)")
 		fmt.Println("- POST /buy")
 		fmt.Println("- POST /sell")
-		fmt.Println("- GET  /transactions/{user_id}")
+		fmt.Println("- GET  /transactions/ (requires JWT token)")
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed to start: %v", err)
