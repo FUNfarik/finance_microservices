@@ -46,9 +46,25 @@ class AuthService {
                 setAuthToken(response.data.token)
                 localStorage.setItem('finance_token', response.data.token)
 
+                // Extract user_id from JWT token and store it
+                try {
+                    const payload = JSON.parse(atob(response.data.token.split('.')[1]))
+                    if (payload.user_id) {
+                        localStorage.setItem('user_id', String(payload.user_id))
+                        console.log('Stored user_id:', payload.user_id)
+                    }
+                } catch (error) {
+                    console.error('Failed to extract user_id from token:', error)
+                }
+
                 // Store user info if provided
                 if (response.data.user) {
                     localStorage.setItem('finance_user', JSON.stringify(response.data.user))
+
+                    // Also store user_id from user object if available
+                    if (response.data.user.id && !localStorage.getItem('user_id')) {
+                        localStorage.setItem('user_id', String(response.data.user.id))
+                    }
                 }
             }
 
@@ -71,6 +87,7 @@ class AuthService {
         // Clear all stored auth data
         localStorage.removeItem('finance_token')
         localStorage.removeItem('finance_user')
+        localStorage.removeItem('user_id') // Also clear user_id
         setAuthToken(null)
     }
 
@@ -97,6 +114,30 @@ class AuthService {
     getCurrentUser() {
         const userStr = localStorage.getItem('finance_user')
         return userStr ? JSON.parse(userStr) : null
+    }
+
+    getCurrentUserId() {
+        // First try to get from localStorage
+        const storedUserId = localStorage.getItem('user_id')
+        if (storedUserId) {
+            return parseInt(storedUserId, 10)
+        }
+
+        // If not found, try to extract from token
+        const token = localStorage.getItem('finance_token')
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]))
+                if (payload.user_id) {
+                    localStorage.setItem('user_id', String(payload.user_id))
+                    return payload.user_id
+                }
+            } catch (error) {
+                console.error('Failed to extract user_id from token:', error)
+            }
+        }
+
+        return null
     }
 
     getToken() {

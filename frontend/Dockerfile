@@ -7,8 +7,6 @@ services:
             POSTGRES_DB: ${POSTGRES_DB}
             POSTGRES_USER: ${POSTGRES_USER}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-        ports:
-            - "5432:5432"
         volumes:
             - postgres_data:/var/lib/postgresql/data
             - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -19,6 +17,7 @@ services:
             retries: 10
         networks:
             - finance_network
+        restart: unless-stopped
 
     make-data-service:
         build:
@@ -29,10 +28,10 @@ services:
             ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
         networks:
             - finance_network
-        # Remove external port exposure - only accessible via nginx
         expose:
             - "8002"
             - "8005"
+        restart: unless-stopped
 
     auth:
         build: ./auth-service
@@ -49,7 +48,6 @@ services:
         restart: unless-stopped
         networks:
             - finance_network
-        # Remove external port exposure
         expose:
             - "8001"
 
@@ -73,9 +71,9 @@ services:
                 condition: service_started
         networks:
             - finance_network
-        # Remove external port exposure
         expose:
             - "8003"
+        restart: unless-stopped
 
     frontend:
         build:
@@ -88,11 +86,10 @@ services:
             - make-data-service
         networks:
             - finance_network
-        # Remove external port exposure - only accessible via nginx
         expose:
             - "80"
+        restart: unless-stopped
 
-    # Nginx API Gateway
     nginx:
         build:
             context: ./nginx
@@ -100,8 +97,7 @@ services:
         container_name: finance_nginx
         ports:
             - "80:80"
-            # Optional: Add HTTPS port for future SSL setup
-            # - "443:443"
+            - "443:443"  # For future SSL
         depends_on:
             - frontend
             - auth
@@ -110,6 +106,8 @@ services:
         networks:
             - finance_network
         restart: unless-stopped
+        volumes:
+            - ./ssl:/etc/nginx/ssl  # For SSL certificates
 
 networks:
     finance_network:

@@ -96,7 +96,7 @@ func (h *Handlers) GetPortfolioHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    fmt.Printf("Getting portfolio for user: %s\n", userID)
+	fmt.Printf("Getting portfolio for user: %s\n", userID)
 
 	// Get portfolio from service
 	portfolio, err := h.portfolioService.GetPortfolio(context.Background(), userID)
@@ -110,9 +110,7 @@ func (h *Handlers) GetPortfolioHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
-
-    response := models.APIResponse{
+	response := models.APIResponse{
 		Status:  "success",
 		Message: "Portfolio retrieved successfully",
 		Data:    portfolio,
@@ -122,6 +120,7 @@ func (h *Handlers) GetPortfolioHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // BuyStockHandler processes stock purchases
+// BuyStockHandler processes stock purchases
 func (h *Handlers) BuyStockHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -130,8 +129,20 @@ func (h *Handlers) BuyStockHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Extract user_id from JWT token (SECURITY FIX)
+	userID, err := h.extractUserIDFromToken(r)
+	if err != nil {
+		response := models.APIResponse{
+			Status: "error",
+			Error:  fmt.Sprintf("Authentication failed: %v", err),
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	var buyReq models.BuyRequest
-	err := json.NewDecoder(r.Body).Decode(&buyReq)
+	err = json.NewDecoder(r.Body).Decode(&buyReq)
 	if err != nil {
 		response := models.APIResponse{
 			Status: "error",
@@ -142,8 +153,8 @@ func (h *Handlers) BuyStockHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Process buy order
-	err = h.portfolioService.BuyStock(context.Background(), buyReq.UserID, buyReq.Symbol, buyReq.Shares)
+	// Process buy order using userID from JWT token
+	err = h.portfolioService.BuyStock(context.Background(), userID, buyReq.Symbol, buyReq.Shares)
 	if err != nil {
 		response := models.APIResponse{
 			Status: "error",
@@ -164,7 +175,7 @@ func (h *Handlers) BuyStockHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	json.NewEncoder(w).Encode(response)
-	fmt.Printf("Buy order: User %d bought %d shares of %s\n", buyReq.UserID, buyReq.Shares, buyReq.Symbol)
+	fmt.Printf("Buy order: User %s bought %d shares of %s\n", userID, buyReq.Shares, buyReq.Symbol)
 }
 
 // SellStockHandler processes stock sales
@@ -176,8 +187,20 @@ func (h *Handlers) SellStockHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Extract user_id from JWT token (SECURITY FIX)
+	userID, err := h.extractUserIDFromToken(r)
+	if err != nil {
+		response := models.APIResponse{
+			Status: "error",
+			Error:  fmt.Sprintf("Authentication failed: %v", err),
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	var sellReq models.SellRequest
-	err := json.NewDecoder(r.Body).Decode(&sellReq)
+	err = json.NewDecoder(r.Body).Decode(&sellReq)
 	if err != nil {
 		response := models.APIResponse{
 			Status: "error",
@@ -188,8 +211,8 @@ func (h *Handlers) SellStockHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Process sell order
-	err = h.portfolioService.SellStock(context.Background(), sellReq.UserID, sellReq.Symbol, sellReq.Shares)
+	// Process sell order using userID from JWT token
+	err = h.portfolioService.SellStock(context.Background(), userID, sellReq.Symbol, sellReq.Shares)
 	if err != nil {
 		response := models.APIResponse{
 			Status: "error",
@@ -210,42 +233,42 @@ func (h *Handlers) SellStockHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	json.NewEncoder(w).Encode(response)
-	fmt.Printf("💸 Sell order: User %d sold %d shares of %s\n", sellReq.UserID, sellReq.Shares, sellReq.Symbol)
+	fmt.Printf("💸 Sell order: User %s sold %d shares of %s\n", userID, sellReq.Shares, sellReq.Symbol)
 }
 
 // GetTransactionsHandler retrieves transaction history
 func (h *Handlers) GetTransactionsHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 
-    // Extract user_id from JWT token
-    userID, err := h.extractUserIDFromToken(r)
-    if err != nil {
-        response := models.APIResponse{
-            Status: "error",
-            Error:  fmt.Sprintf("Authentication failed: %v", err),
-        }
-        w.WriteHeader(http.StatusUnauthorized)
-        json.NewEncoder(w).Encode(response)
-        return
-    }
+	// Extract user_id from JWT token
+	userID, err := h.extractUserIDFromToken(r)
+	if err != nil {
+		response := models.APIResponse{
+			Status: "error",
+			Error:  fmt.Sprintf("Authentication failed: %v", err),
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 
-    // Get transactions from service
-    transactions, err := h.portfolioService.GetTransactions(context.Background(), userID)
-    if err != nil {
-        response := models.APIResponse{
-            Status: "error",
-            Error:  fmt.Sprintf("Failed to get transactions: %v", err),
-        }
-        w.WriteHeader(http.StatusInternalServerError)
-        json.NewEncoder(w).Encode(response)
-        return
-    }
+	// Get transactions from service
+	transactions, err := h.portfolioService.GetTransactions(context.Background(), userID)
+	if err != nil {
+		response := models.APIResponse{
+			Status: "error",
+			Error:  fmt.Sprintf("Failed to get transactions: %v", err),
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 
-    response := models.APIResponse{
-        Status:  "success",
-        Message: "Transactions retrieved successfully",
-        Data:    transactions,
-    }
-    json.NewEncoder(w).Encode(response)
-    fmt.Printf("Transaction history requested for user %s\n", userID)
+	response := models.APIResponse{
+		Status:  "success",
+		Message: "Transactions retrieved successfully",
+		Data:    transactions,
+	}
+	json.NewEncoder(w).Encode(response)
+	fmt.Printf("Transaction history requested for user %s\n", userID)
 }
