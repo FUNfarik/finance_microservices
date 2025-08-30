@@ -96,7 +96,7 @@ services:
     nginx:
         build:
             context: ./nginx
-            dockerfile: Dockerfile
+            dockerfile: nginx/Dockerfile_ser
         container_name: finance_nginx
         ports:
             - "80:80"
@@ -117,3 +117,4 @@ networks:
 
 volumes:
     postgres_data:
+        driver: local
