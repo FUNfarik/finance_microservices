@@ -12,6 +12,7 @@ class PortfolioService {
             const userId = this.getUserId()
             console.log('Fetching portfolio for user:', userId)
 
+            // Token is automatically included via interceptor
             const response = await portfolioApi.get(`/portfolio/${userId}`)
             console.log('Portfolio API response:', response.data)
 
@@ -54,11 +55,11 @@ class PortfolioService {
 
     async buyStock(symbol, shares) {
         try {
-            const userId = this.getUserId()
-            console.log('Buying stock:', { userId, symbol, shares })
+            console.log('Buying stock:', { symbol, shares })
 
+            // Token is automatically included via interceptor
+            // user_id is extracted from JWT token on backend
             const response = await portfolioApi.post('/buy', {
-                user_id: userId,
                 symbol: symbol.toUpperCase(),
                 shares: parseInt(shares, 10)
             })
@@ -73,11 +74,11 @@ class PortfolioService {
 
     async sellStock(symbol, shares) {
         try {
-            const userId = this.getUserId()
-            console.log('Selling stock:', { userId, symbol, shares })
+            console.log('Selling stock:', { symbol, shares })
 
+            // Token is automatically included via interceptor
+            // user_id is extracted from JWT token on backend
             const response = await portfolioApi.post('/sell', {
-                user_id: userId,
                 symbol: symbol.toUpperCase(),
                 shares: parseInt(shares, 10)
             })
@@ -93,6 +94,7 @@ class PortfolioService {
     async getTransactionsHistory() {
         try {
             const userId = this.getUserId()
+            // Token is automatically included via interceptor
             const response = await portfolioApi.get(`/transactions/${userId}`)
             // unwrap here too if backend returns {status,message,data}
             return response.data?.data ?? response.data
@@ -117,9 +119,18 @@ class PortfolioService {
         localStorage.setItem('user_id', String(userId))
     }
 
+    // Set JWT token (for when user logs in)
+    setToken(token) {
+        localStorage.setItem('finance_token', token) // Use same key as auth service
+    }
+
     // Clear user data (for logout)
     clearUser() {
         localStorage.removeItem('user_id')
+        localStorage.removeItem('finance_token') // Use same key as auth service
+        localStorage.removeItem('token')
+        localStorage.removeItem('jwt_token')
+        localStorage.removeItem('access_token')
     }
 }
 
