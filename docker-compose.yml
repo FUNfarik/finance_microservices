@@ -96,7 +96,7 @@ services:
     nginx:
         build:
             context: ./nginx
-            dockerfile: nginx/Dockerfile_ser
+            dockerfile: Dockerfile
         container_name: finance_nginx
         ports:
             - "80:80"
